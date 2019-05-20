@@ -25,14 +25,15 @@ module powerbi.extensibility.visual {
     interface VisualViewModel {
         dataPoints: VisualDataPoint[];
         settings: VisualSettings;
+        absoluteSource: string;
     };
 
     interface VisualDataPoint {
         categoryText: string;
         measureAbsolute: number;
-        measureDeviation: number;
+        measureDeviation: number[];
         measureAbsoluteFormatted: string;
-        measureDeviationFormatted: string;
+        measureDeviationFormatted: string[];
     };
 
     interface VisualSettings {
@@ -46,18 +47,25 @@ module powerbi.extensibility.visual {
             pCustomText: string;
             pForeColor: Fill;
             pBgColor: Fill;
+            positiveColour: Fill;
+            negativeColour: Fill;
             pInterval: number;
-        };
+        }, 
+
+        determinePositive: {
+            default: boolean;
+            custom: string;
+        },
     }
 
     export interface TextCategory {
         txtCategory: string;
         txtDataAbsoluteFormatted: string;
         txtDataRelativeFormatted: string;
-        txtSplitChar: string;
+        txtSplitChar: string[];
         txtSeparator: string;
         colText: string;
-        colStatus: string;
+        colStatus: string[];
         posX: number;
         svgSel: d3.Selection<SVGElement>;
         sCategory: d3.Selection<SVGElement>;
@@ -67,7 +75,6 @@ module powerbi.extensibility.visual {
         sSeparator: d3.Selection<SVGElement>;
         actualWidth: number;
     }
-
 
     function getMeasureIndex(dv: DataViewCategorical, measureName: string): number {
         let RetValue: number = -1;
@@ -80,6 +87,7 @@ module powerbi.extensibility.visual {
         return RetValue;
     }
 
+    //This is the function that is responsible for dealing with the data that is being passed in
     function visualTransform(options: VisualUpdateOptions, host: IVisualHost, thisRef: Visual): VisualViewModel {
         let dataViews = options.dataViews;
         let defaultSettings: VisualSettings = {
@@ -93,12 +101,19 @@ module powerbi.extensibility.visual {
                 pCustomText: "",
                 pForeColor: { solid: { color: "#ffffff" } },
                 pBgColor: { solid: { color: "#000000" } },
+                positiveColour: { solid: { color: "#96C401" } },
+                negativeColour: { solid: { color: "#DC0002" } },
                 pInterval: 50
+            },
+            determinePositive: {
+                default: true,
+                custom: "> 10 * 23",
             }
-        }; 
+        };
         let viewModel: VisualViewModel = {
             dataPoints: [],
-            settings: <VisualSettings>{}
+            settings: <VisualSettings>{},
+            absoluteSource: "",
         };
 
         /*
@@ -111,7 +126,7 @@ module powerbi.extensibility.visual {
             return viewModel;
             */
 
-        if ( !dataViews[0] ) {
+        if (!dataViews[0]) {
             return viewModel;
         }
 
@@ -119,80 +134,104 @@ module powerbi.extensibility.visual {
         let objects = dataViews[0].metadata.objects;
         let visualSettings: VisualSettings = {
             scroller: {
-                pShouldAutoSizeFont: getValue<boolean>(objects, 'scroller', 'pShouldAutoSizeFont', defaultSettings.scroller.pShouldAutoSizeFont),
-                pShouldIndicatePosNeg: getValue<boolean>(objects, 'scroller', 'pShouldIndicatePosNeg', defaultSettings.scroller.pShouldIndicatePosNeg),
-                pShouldUsePosNegColoring: getValue<boolean>(objects, 'scroller', 'pShouldUsePosNegColoring', defaultSettings.scroller.pShouldUsePosNegColoring),
-                pShouldUseTextColoring: getValue<boolean>(objects, 'scroller', 'pShouldUseTextColoring', defaultSettings.scroller.pShouldUseTextColoring),
-                pFontSize: getValue<number>(objects, 'scroller', 'pFontSize', defaultSettings.scroller.pFontSize),
+                pShouldAutoSizeFont: getValue<boolean>(objects, 'text', 'pShouldAutoSizeFont', defaultSettings.scroller.pShouldAutoSizeFont),
+                pShouldIndicatePosNeg: getValue<boolean>(objects, 'status', 'pShouldIndicatePosNeg', defaultSettings.scroller.pShouldIndicatePosNeg),
+                pShouldUsePosNegColoring: getValue<boolean>(objects, 'status', 'pShouldUsePosNegColoring', defaultSettings.scroller.pShouldUsePosNegColoring),
+                pShouldUseTextColoring: getValue<boolean>(objects, 'status', 'pShouldUseTextColoring', defaultSettings.scroller.pShouldUseTextColoring),
+                pFontSize: getValue<number>(objects, 'text', 'pFontSize', defaultSettings.scroller.pFontSize),
                 pSpeed: getValue<number>(objects, 'scroller', 'pSpeed', defaultSettings.scroller.pSpeed),
-                pCustomText: getValue<string>(objects, 'scroller', 'pCustomText', defaultSettings.scroller.pCustomText),
-                pForeColor: getValue<Fill>(objects, 'scroller', 'pForeColor', defaultSettings.scroller.pForeColor),
-                pBgColor: getValue<Fill>(objects, 'scroller', 'pBgColor', defaultSettings.scroller.pBgColor),
+                pCustomText: getValue<string>(objects, 'text', 'pCustomText', defaultSettings.scroller.pCustomText),
+                pForeColor: getValue<Fill>(objects, 'colour', 'pForeColor', defaultSettings.scroller.pForeColor),
+                pBgColor: getValue<Fill>(objects, 'colour', 'pBgColor', defaultSettings.scroller.pBgColor),
+                positiveColour: getValue<Fill>(objects, 'colour', 'positiveColour', defaultSettings.scroller.positiveColour),
+                negativeColour: getValue<Fill>(objects, 'colour', 'negativeColour', defaultSettings.scroller.negativeColour),
                 pInterval: getValue<number>(objects, 'scroller', 'pInterval', defaultSettings.scroller.pInterval)
+            },
+            determinePositive: {
+                default: getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default),
+                custom: getValue<string>(objects, 'determinePositive', 'custom', defaultSettings.determinePositive.custom)
             }
         }
         viewModel.settings = visualSettings;
 
-        if (! dataViews[0] 
-            ||!dataViews[0].categorical 
-            ||!dataViews[0].categorical.values ) {
+        if (!dataViews[0]
+            || !dataViews[0].categorical
+            || !dataViews[0].categorical.values) {
             return viewModel;
-        }        
+        }
 
         // Set property limits
 
-        if ( visualSettings.scroller.pFontSize > 1000  ) {
+        if (visualSettings.scroller.pFontSize > 1000) {
             visualSettings.scroller.pFontSize = 1000;
-        } else if ( visualSettings.scroller.pFontSize < 0  ) {
+        } else if (visualSettings.scroller.pFontSize < 0) {
             visualSettings.scroller.pFontSize = 0;
         }
 
-        if ( visualSettings.scroller.pSpeed > 1000  ) {
+        if (visualSettings.scroller.pSpeed > 1000) {
             visualSettings.scroller.pSpeed = 1000;
-        } else if ( visualSettings.scroller.pSpeed < 0  ) {
+        } else if (visualSettings.scroller.pSpeed < 0) {
             visualSettings.scroller.pSpeed = 0;
         }
 
         let categorical = dataViews[0].categorical;
-        let category = typeof(categorical.categories)==='undefined' ? null : categorical.categories[0];
+        let category = typeof (categorical.categories) === 'undefined' ? null : categorical.categories[0];
         let dataValue = categorical.values[0];
 
         let measureAbsoluteIndex = getMeasureIndex(categorical, "Measure Absolute");
-        let measureDeviationIndex = getMeasureIndex(categorical, "Measure Deviation");
+        let measureDeviationStartIndex = getMeasureIndex(categorical, "Measure Deviation");
 
         // If we dont have a category, set a default one
-        if ( category === null ) {
-            let tmp:DataViewCategoryColumn = {
-                source:null,
-                values:[]
+        if (category === null) {
+            let tmp: DataViewCategoryColumn = {
+                source: null,
+                values: []
             };
             category = tmp;
             category.values = [];
             category.values.push("");
         }
 
-        let visualDataPoints: VisualDataPoint[] = [];        
+        let visualDataPoints: VisualDataPoint[] = [];
 
+
+        var absoluteSource = categorical.values[measureAbsoluteIndex].source.displayName;
+        for (var i = measureDeviationStartIndex; i < categorical.values.length; i++) {
+            var measureSource = measureDeviationStartIndex > -1 ? categorical.values[i].source.displayName : null;
+            
+            if (measureSource !== null)
+                absoluteSource += "-" + measureSource;
+        }
+
+        //Change the loop to retrieve the multiple Deviation values instead of just the one
         for (let i = 0, len = Math.max(category.values.length, dataValue.values.length); i < len; i++) {
             var measureAbs = measureAbsoluteIndex > -1 ? <number>categorical.values[measureAbsoluteIndex].values[i] : null;
-            var measureDev = measureDeviationIndex > -1 ? <number>categorical.values[measureDeviationIndex].values[i] : null;
             var measureAbsForm = measureAbsoluteIndex > -1 ? valueFormatter.format(<number>categorical.values[measureAbsoluteIndex].values[i], dataViews[0].categorical.values.grouped()[0].values[measureAbsoluteIndex].source.format) : null;
-            var measureDevForm = measureDeviationIndex > -1 ? valueFormatter.format(<number>categorical.values[measureDeviationIndex].values[i], dataViews[0].categorical.values.grouped()[0].values[measureDeviationIndex].source.format) : null;
+            var measureDev = [];
+            var measureDevForm = [];
+
+            for (var j = measureDeviationStartIndex; j < categorical.values.length; j++) {
+                measureDev.push(measureDeviationStartIndex > -1 ? <number>categorical.values[j].values[i] : null);
+                measureDevForm.push(measureDeviationStartIndex > -1 ? valueFormatter.format(<number>categorical.values[j].values[i], dataViews[0].categorical.values.grouped()[0].values[j].source.format) : null);
+            }
+
             visualDataPoints.push({
                 categoryText: <string>category.values[i],
                 measureAbsolute: measureAbs,
-                measureDeviation:  measureDev,
+                measureDeviation: measureDev,
                 measureAbsoluteFormatted: measureAbsForm,
-                measureDeviationFormatted:  measureDevForm
+                measureDeviationFormatted: measureDevForm,
+
             });
-        }      
+        }
 
         return {
             dataPoints: visualDataPoints,
-            settings: visualSettings
+            settings: visualSettings,
+            absoluteSource: absoluteSource,
         };
 
-        
+
     }
 
     export class Visual implements IVisual {
@@ -200,7 +239,7 @@ module powerbi.extensibility.visual {
         private updateCount: number;
 
         private svg: d3.Selection<SVGElement>;
-        private gWidth : number;
+        private gWidth: number;
         private gHeight: number;
 
         private visualCurrentSettings: VisualSettings;
@@ -210,12 +249,7 @@ module powerbi.extensibility.visual {
         private shouldRestartAnimFrame: boolean = false;
         private animationFrameLoopStarted: boolean = false;
         private animationLastTime: any = null;
-
-      
-      
-      
-        //private colorPalette: IDataColorPalette;
-
+        
         private dataView: DataView;
         private rect: d3.Selection<SVGElement>;
         private sText: d3.Selection<SVGElement>;
@@ -240,42 +274,42 @@ module powerbi.extensibility.visual {
 
             var that = this;
             this.rect = this.svg.append("rect")
-            .on("mouseover", function () {
-                that.activeTargetSpeed = 0;
-            })
-            .on("mouseout", function () {
-                that.activeTargetSpeed = that.visualCurrentSettings.scroller.pSpeed;
-            });
+                .on("mouseover", function () {
+                    that.activeTargetSpeed = 0;
+                })
+                .on("mouseout", function () {
+                    that.activeTargetSpeed = that.visualCurrentSettings.scroller.pSpeed;
+                });
 
             this.sText = this.svg.append("text");
         }
 
-        
+
         public update(options: VisualUpdateOptions) {
             this.shouldRestartAnimFrame = true;
 
             let viewModel: VisualViewModel = visualTransform(options, this.host, this);
             let settings = this.visualCurrentSettings = viewModel.settings;
             this.visualDataPoints = viewModel.dataPoints;
-            
+
             let width = this.gWidth = options.viewport.width;
             let height = this.gHeight = options.viewport.height;
 
-            if ( (this.visualDataPoints.length === 0 && typeof(this.visualCurrentSettings.scroller) === 'undefined') || (this.visualDataPoints.length === 0 && (!this.visualCurrentSettings.scroller.pCustomText || this.visualCurrentSettings.scroller.pCustomText.length === 0))) {
+            if ((this.visualDataPoints.length === 0 && typeof (this.visualCurrentSettings.scroller) === 'undefined') || (this.visualDataPoints.length === 0 && (!this.visualCurrentSettings.scroller.pCustomText || this.visualCurrentSettings.scroller.pCustomText.length === 0))) {
                 // if we have no data and no custom text we want to exit.
                 this.svg.attr("visibility", "hidden");
                 return;
             }
 
-            this.svg.attr("visibility", "visible");           
+            this.svg.attr("visibility", "visible");
 
             this.svg
                 .attr("width", width)
                 .attr("height", height);
 
-              var dataViews = options.dataViews;
+            var dataViews = options.dataViews;
             if (!dataViews) return;
-            
+
             this.dataView = options.dataViews[0];
             var that = this;
             this.shouldRestartAnimFrame = true;
@@ -302,14 +336,14 @@ module powerbi.extensibility.visual {
             else if (this.activeFontSize > 10000) {
                 this.activeFontSize = 10000;
             }
-            
-             this.rect
+
+            this.rect
                 .attr("x", 0)
                 .attr("y", 0)
                 .attr("width", width)
                 .attr("height", height)
                 .attr("fill", this.visualCurrentSettings.scroller.pBgColor.solid.color)
-            ;
+                ;
 
             this.sText.remove();
             this.sText = this.svg.append("text")
@@ -325,8 +359,8 @@ module powerbi.extensibility.visual {
                 .attr("font-family", "Lucida Console")
                 .attr("font-size", this.activeFontSize + "px")
                 .attr("fill", "#ffffff")
-            ;
-      
+                ;
+
             // Create text from data
             this.CreateTextFromData(viewModel, options.dataViews[0]);
 
@@ -337,9 +371,12 @@ module powerbi.extensibility.visual {
             if (!this.animationFrameLoopStarted) {
                 this.animationFrameLoopStarted = true;
                 this.animationStep();
-            } 
+            }
         }
 
+        /**This is the method that is used to create the text from the already formatted data. This
+         * is where we will format the data and not retrieve it.
+         */
         private CreateTextFromData(viewModel: VisualViewModel, dataView: DataView) {
             if (this.gPosX === 0) {
                 this.gPosX = this.viewportWidth;
@@ -365,8 +402,8 @@ module powerbi.extensibility.visual {
                     txtDataAbsoluteFormatted: "",
                     txtDataRelativeFormatted: "",
                     txtSeparator: "",
-                    txtSplitChar: "",
-                    colStatus: this.visualCurrentSettings.scroller.pBgColor.solid.color,
+                    txtSplitChar: [],
+                    colStatus: [this.visualCurrentSettings.scroller.pBgColor.solid.color],
                     colText: this.visualCurrentSettings.scroller.pForeColor.solid.color,
                     posX: this.viewportWidth + 10,
                     svgSel: null,
@@ -382,6 +419,26 @@ module powerbi.extensibility.visual {
                 return;
             }
 
+            //Add a text element that will be used to represent the absolute data that is being displayed on the screen
+            this.arrTextCategories.push({
+                txtCategory: viewModel.absoluteSource,
+                txtDataAbsoluteFormatted: "",
+                txtDataRelativeFormatted: "",
+                txtSeparator: ".....",
+                txtSplitChar: [],
+                colStatus: [this.visualCurrentSettings.scroller.pBgColor.solid.color],
+                colText: this.visualCurrentSettings.scroller.pForeColor.solid.color,
+                posX: this.gPosX,
+                svgSel: null,
+                sCategory: null,
+                sDataAbsoluteFormatted: null,
+                sDataRelativeFormatted: null,
+                sSeparator: null,
+                sSplitChar: null,
+                actualWidth: 0
+            });
+
+            //This is the part of the code that will create the text based on the values of the data
             for (var i = 0; i < viewModel.dataPoints.length; i++) {
                 var category = viewModel.dataPoints[i].categoryText;
 
@@ -394,33 +451,50 @@ module powerbi.extensibility.visual {
                     dataAbsolute = viewModel.dataPoints[i].measureAbsolute;
                     dataAbsoluteFormatted = viewModel.dataPoints[i].measureAbsoluteFormatted;
                 }
+
                 if (bShouldRenderRelative) {
                     dataRelative = viewModel.dataPoints[i].measureDeviation;
                     dataRelativeFormatted = viewModel.dataPoints[i].measureDeviationFormatted;
                 }
-               
+
                 // Status Color
-                var colorStatus = this.visualCurrentSettings.scroller.pForeColor.solid.color;
+                var colorStatus = [];
                 var colorText = this.visualCurrentSettings.scroller.pForeColor.solid.color;
-                var splitChar = " ";
-                if (bShouldRenderRelative && this.visualCurrentSettings.scroller.pShouldIndicatePosNeg) {
-                    if (dataRelative >= 0) {
-                        if (this.visualCurrentSettings.scroller.pShouldUsePosNegColoring) {
-                            colorStatus = "#96C401";
+                var splitChar = [];
+
+                /**
+                 * This for-loop will determine and set the colour and symbol for each measure within the 
+                 * deviation.
+                 */
+                for (var j = 0; j < viewModel.dataPoints[i].measureDeviation.length; j++) {
+                    if (bShouldRenderRelative) {
+                        //Part of the code that determines if they outcome should be positive or negative
+                        if (this.isPositiveValue(dataRelative[j], viewModel.settings)) {
+                            if (this.visualCurrentSettings.scroller.pShouldUsePosNegColoring) {
+                                colorStatus.push(this.visualCurrentSettings.scroller.positiveColour.solid.color);
+                            } else {
+                                colorStatus.push(this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                            }
+
+                            if (this.visualCurrentSettings.scroller.pShouldIndicatePosNeg) {
+                                splitChar.push(" ▲ ");
+                            } else {
+                                splitChar.push(" ")
+                            }
                         }
-                        if (this.visualCurrentSettings.scroller.pShouldUseTextColoring) {
-                            colorText = "#96C401";
+                        else {
+                            if (this.visualCurrentSettings.scroller.pShouldUsePosNegColoring) {
+                                colorStatus.push(this.visualCurrentSettings.scroller.negativeColour.solid.color);
+                            } else {
+                                colorStatus.push(this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                            }
+
+                            if (this.visualCurrentSettings.scroller.pShouldIndicatePosNeg) {
+                                splitChar.push(" ▼ ");
+                            } else {
+                                splitChar.push(" ")
+                            }
                         }
-                        splitChar = " ▲ ";
-                    }
-                    else {
-                        if (this.visualCurrentSettings.scroller.pShouldUsePosNegColoring) {
-                            colorStatus = "#DC0002";
-                        }
-                        if (this.visualCurrentSettings.scroller.pShouldUseTextColoring) {
-                            colorText = "#DC0002";
-                        }
-                        splitChar = " ▼ ";
                     }
                 }
 
@@ -441,12 +515,12 @@ module powerbi.extensibility.visual {
                     sSplitChar: null,
                     actualWidth: 0
                 };
-                if (i === 0) {
-                    newCat.posX = this.gPosX;
-                }
+                // if (i === 0) {
+                //     newCat.posX = this.gPosX;
+                // }
                 this.arrTextCategories.push(newCat);
             }
-        } 
+        }
 
         public getMetaDataColumn(dataView: DataView) {
             var retValue = null;
@@ -462,11 +536,23 @@ module powerbi.extensibility.visual {
                 }
             }
             return retValue;
-        }     
+        }
+
+        private isPositiveValue(data, settings) {
+            if (settings.determinePositive.default)
+                return data >= 0;
+
+            if (settings.determinePositive.custom.trim().length > 0) {
+                var func = new Function("x", "return x " + settings.determinePositive.custom);
+                return func(data);
+            }
+
+            return data >= 0;
+        }
 
         public getMetaDataColumnForMeasureIndex(dataView: DataView, measureIndex: number) {
             var addCol = 0;
-            
+
             if (dataView && dataView.metadata && dataView.metadata.columns) {
                 for (var i = 0; i < dataView.metadata.columns.length; i++) {
                     if (!dataView.metadata.columns[i].isMeasure)
@@ -479,34 +565,73 @@ module powerbi.extensibility.visual {
                 }
             }
             return null;
-        }           
-        
+        }
+
         // Right settings panel
         public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): VisualObjectInstanceEnumeration {
             let objectName = options.objectName;
             let objectEnumeration: VisualObjectInstance[] = [];
-            
+
             switch (objectName) {
                 case 'scroller':
                     objectEnumeration.push({
                         objectName: objectName,
-                        displayName: "Scroller",
+                        displayName: "General Scroller",
                         properties: {
-                            pShouldAutoSizeFont: this.visualCurrentSettings.scroller.pShouldAutoSizeFont,
-                            pShouldIndicatePosNeg: this.visualCurrentSettings.scroller.pShouldIndicatePosNeg,
-                            pShouldUsePosNegColoring: this.visualCurrentSettings.scroller.pShouldUsePosNegColoring,
-                            pShouldUseTextColoring: this.visualCurrentSettings.scroller.pShouldUseTextColoring,
-                            pFontSize: this.visualCurrentSettings.scroller.pFontSize,
                             pSpeed: this.visualCurrentSettings.scroller.pSpeed,
-                            pCustomText: this.visualCurrentSettings.scroller.pCustomText,
-                            pForeColor: this.visualCurrentSettings.scroller.pForeColor,
-                            pBgColor: this.visualCurrentSettings.scroller.pBgColor,
                             pInterval: this.visualCurrentSettings.scroller.pInterval
                         },
                         selector: null
                     });
                     break;
-                
+                case 'determinePositive':
+                        objectEnumeration.push({
+                            objectName: objectName,
+                            displayName: "Determine Positive",
+                            properties: {
+                                default: this.visualCurrentSettings.determinePositive.default,
+                                custom: this.visualCurrentSettings.determinePositive.custom
+                            },
+                            selector: null
+                        });
+                    break;
+                case 'status':
+                        objectEnumeration.push({
+                            objectName: objectName,
+                            displayName: "Status",
+                            properties: {
+                                pShouldIndicatePosNeg: this.visualCurrentSettings.scroller.pShouldIndicatePosNeg,
+                                pShouldUsePosNegColoring: this.visualCurrentSettings.scroller.pShouldUsePosNegColoring,
+                                pShouldUseTextColoring: this.visualCurrentSettings.scroller.pShouldUseTextColoring,
+                            },
+                            selector: null
+                        });
+                    break;
+                case 'text':
+                        objectEnumeration.push({
+                            objectName: objectName,
+                            displayName: "Text",
+                            properties: {
+                                pShouldAutoSizeFont: this.visualCurrentSettings.scroller.pShouldAutoSizeFont,
+                                pFontSize: this.visualCurrentSettings.scroller.pFontSize,
+                                pCustomText: this.visualCurrentSettings.scroller.pCustomText,
+                            },
+                            selector: null
+                        });
+                    break;
+                case 'colour':
+                        objectEnumeration.push({
+                            objectName: objectName,
+                            displayName: "Colour",
+                            properties: {
+                                pForeColor: this.visualCurrentSettings.scroller.pForeColor,
+                                pBgColor: this.visualCurrentSettings.scroller.pBgColor,
+                                positiveColour: this.visualCurrentSettings.scroller.positiveColour,
+                                negativeColour: this.visualCurrentSettings.scroller.negativeColour
+                            },
+                            selector: null
+                        });
+                    break;
             };
 
             return objectEnumeration;
@@ -535,7 +660,7 @@ module powerbi.extensibility.visual {
             this.animationId = window["requestAnimFrame"](function () { that.animationStep(); });
 
             this.animationUpdateStep();
-        }    
+        }
 
         public animationUpdateStep() {
             if (!this.arrTextCategories) {
@@ -567,41 +692,50 @@ module powerbi.extensibility.visual {
                                 that.activeTargetSpeed = 0;
                             })
                             .on("mouseout", function () {
-                                    that.activeTargetSpeed = curSettings.scroller == null ? 0 : curSettings.scroller.pSpeed;
+                                that.activeTargetSpeed = curSettings.scroller == null ? 0 : curSettings.scroller.pSpeed;
                             });
 
                         s.sCategory = s.svgSel.append("tspan")
-                            .text(s.txtCategory + " ")
+                            .text(" " + s.txtCategory + ": ")
                             .attr("y", y)
                             .style("fill", s.colText)
-                        ;
+                            ;
 
                         if (bShouldRenderAbsolute) {
                             s.sDataAbsoluteFormatted = s.svgSel.append("tspan")
                                 .text(s.txtDataAbsoluteFormatted)
                                 .attr("y", y)
                                 .style("fill", s.colText)
-                            ;
-
-                            s.sSplitChar = s.svgSel.append("tspan")
-                                .text(s.txtSplitChar)
-                                .attr("y", y)
-                                .style("fill", s.colStatus)
-                            ;
+                                ;
                         }
+
                         if (bShouldRenderRelative) {
-                            s.sSplitChar = s.svgSel.append("tspan")
-                                .text(s.txtDataRelativeFormatted)
-                                .attr("y", y)
-                                .style("fill", s.colText)
-                            ;
+                            for (var j = 0; j < s.txtDataRelativeFormatted.length; j++) {
+                                s.sSplitChar = s.svgSel.append("tspan")
+                                    .text(s.txtSplitChar[j])
+                                    .attr("y", y)
+                                    .style("fill", s.colStatus[j])
+                                    ;
+                                
+                                var colText = s.colText;
+
+                                if (curSettings.scroller.pShouldUseTextColoring) {
+                                    colText = s.colStatus[j];
+                                }
+
+                                s.sSplitChar = s.svgSel.append("tspan")
+                                    .text(s.txtDataRelativeFormatted[j])
+                                    .attr("y", y)
+                                    .style("fill", colText)
+                                    ;
+                            }
                         }
 
                         s.sSplitChar = s.svgSel.append("tspan")
                             .text(s.txtSeparator)
                             .attr("y", y)
-                            .style("fill", function(e) { return curSettings.scroller == null ? "#abcdef" : curSettings.scroller.pBgColor.solid.color; })
-                        ;
+                            .style("fill", function (e) { return curSettings.scroller == null ? "#abcdef" : curSettings.scroller.pBgColor.solid.color; })
+                            ;
 
                         s.svgSel.each(function () {
                             s.actualWidth = this.getBBox().width;
@@ -611,12 +745,12 @@ module powerbi.extensibility.visual {
                             var sPrev: TextCategory = this.arrTextCategories[i - 1];
                             s.posX = sPrev.posX + sPrev.actualWidth;
                         }
-                        
+
                         // Nedanstående är till för att hantera om vi har mindre texter än hela utrymmet - då vill vi inte lägga in textern i mitten...
                         if (s.posX < this.viewportWidth) {
                             s.posX = this.viewportWidth;
                         }
-                        
+
                         // Uppdatera alla efterliggande med den nyligen tillagdas position och bredd.
                         if (i < this.arrTextCategories.length - 1) {
                             for (var t = i + 1; t < this.arrTextCategories.length; t++) {
@@ -677,8 +811,8 @@ module powerbi.extensibility.visual {
 
                     break;
                 }
-            }        
+            }
         }
-        
+
     }
 }

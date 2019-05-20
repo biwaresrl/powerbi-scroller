@@ -37,7 +37,7 @@
             "max": 1
           },
           "Measure Deviation": {
-            "max": 1
+            "max": 3
           }
         }
       ],
@@ -78,14 +78,42 @@
   },
   "objects": {
     "scroller": {
-      "displayName": "Scroller",
+      "displayName": "General Scroller",
       "properties": {
-        "pShouldAutoSizeFont": {
-          "displayName": "Auto-size font",
+        "pSpeed": {
+          "displayName": "Scroll speed",
+          "type": {
+            "numeric": true
+          }
+        },
+        "pInterval": {
+          "displayName": "Update interval",
+          "type": {
+            "numeric": true
+          }
+        }
+      }
+    },
+    "determinePositive": {
+      "displayName": "Determine Positive",
+      "properties": {
+        "default": {
+          "displayName": "Default",
           "type": {
             "bool": true
           }
         },
+        "custom": {
+          "displayName": "Custom",
+          "type": {
+            "text": true
+          }
+        }
+      }
+    },
+    "status": {
+      "displayName": "Status",
+      "properties": {
         "pShouldIndicatePosNeg": {
           "displayName": "Status indicator",
           "type": {
@@ -103,6 +131,17 @@
           "type": {
             "bool": true
           }
+        }
+      }
+    },
+    "text": {
+      "displayName": "Text",
+      "properties": {
+        "pShouldAutoSizeFont": {
+          "displayName": "Auto-size font",
+          "type": {
+            "bool": true
+          }
         },
         "pFontSize": {
           "displayName": "Font size (if not auto-size)",
@@ -110,12 +149,17 @@
             "numeric": true
           }
         },
-        "pSpeed": {
-          "displayName": "Scroll speed",
+        "pCustomText": {
+          "displayName": "Custom Text",
           "type": {
-            "numeric": true
+            "text": true
           }
-        },
+        }
+      }
+    },
+    "colour": {
+      "displayName": "Colour",
+      "properties": {
         "pForeColor": {
           "displayName": "Text color",
           "type": {
@@ -136,16 +180,24 @@
             }
           }
         },
-        "pCustomText": {
-          "displayName": "Custom Text",
+        "positiveColour": {
+          "displayName": "Positive colour",
           "type": {
-            "text": true
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
           }
         },
-        "pInterval": {
-          "displayName": "Update interval",
+        "negativeColour": {
+          "displayName": "Negative color",
           "type": {
-            "numeric": true
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
           }
         }
       }

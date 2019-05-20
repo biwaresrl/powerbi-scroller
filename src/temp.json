@@ -1,0 +1,199 @@
+{
+    "dataRoles": [
+        {
+            "displayName": "Measure",
+            "name": "measure",
+            "kind": "Measure"
+        }
+    ],
+    "objects": {
+        "animation": {
+            "displayName": "Animation",
+            "properties": {
+                "duration": {
+                    "displayName": "Animation Duration (ms)",
+                    "description": "The time it will take for the animation to take place.",
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
+        "image": {
+            "displayName": "Image",
+            "properties": {
+                "url": {
+                    "displayName": "URL to image",
+                    "description": "URL linking to the icon to be used by the visualization.",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        },
+        "fill": {
+            "displayName": "Fill",
+            "properties": {
+                "colour": {
+                    "displayName": "Colour",
+                    "description": "The colour used to fill up the icon.",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "orientation": {
+                    "displayName": "Orientation",
+                    "description": "Which way the object will be filled (up or down).",
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "horizontal",
+                                "displayName": "Horizontal"
+                            },
+                            {
+                                "value": "vertical",
+                                "displayName": "Vertical"
+                            },
+                            {
+                                "value": "clockwise",
+                                "displayName": "Clockwise"
+                            }
+                        ]
+                    }
+                },
+                "saturation": {
+                    "displayName": "Saturation",
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
+        "gradiant": {
+            "displayName": "Gradiant",
+            "properties": {
+                "show": {
+                    "displayName": "Display Percentage",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "colour1": {
+                    "displayName": "Colour Layer 1",
+                    "description": "The first colour layer of the gradiant.",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "colour2": {
+                    "displayName": "Colour Layer 2",
+                    "description": "The second colour layer of the gradiant.",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "colour3": {
+                    "displayName": "Colour Layer 3",
+                    "description": "The third colour layer of the gradiant.",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "gradiantPercent1": {
+                    "displayName": "Gradiant Percentage Point 1",
+                    "description": "At which percentage of the shape that the colour will start switching.",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "gradiantPercent2": {
+                    "displayName": "Gradiant Percentage Point 2",
+                    "description": "At which percentage of the shape that the colour will start switching.",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "gradiantPercent3": {
+                    "displayName": "Gradiant Percentage Point 3",
+                    "description": "At which percentage of the shape that the colour will start switching.",
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
+        "percentageText": {
+            "displayName": "Display Percentage",
+            "properties": {
+                "show": {
+                    "displayName": "Display Percentage",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "fontSize": {
+                    "displayName": "Font Size",
+                    "description": "Size of the font of the text representing the percentage.",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "xPos": {
+                    "displayName": "X Position",
+                    "description": "X position of the text placement (center and in percentage).",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "yPos": {
+                    "displayName": "Y Position",
+                    "description": "Y position of the text placement (center and in percentage).",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "color": {
+                    "displayName": "Color",
+                    "description": "The color of the text.",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "dataViewMappings": [
+        {
+            "conditions": [
+                {
+                    "measure": {
+                        "max": 1
+                    }
+                }
+            ],
+            "single": {
+                "role": "measure"
+            }
+        }
+    ]
+}
