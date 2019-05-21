@@ -76,6 +76,8 @@ module powerbi.extensibility.visual {
         sSplitChar: d3.Selection<SVGElement>;
         sSeparator: d3.Selection<SVGElement>;
         actualWidth: number;
+        offset: number;
+        isHeader: boolean;
     }
 
     function getMeasureIndex(dv: DataViewCategorical, measureName: string): number {
@@ -421,7 +423,9 @@ module powerbi.extensibility.visual {
                     sDataRelativeFormatted: null,
                     sSeparator: null,
                     sSplitChar: null,
-                    actualWidth: 0
+                    actualWidth: 0, 
+                    offset: 0,
+                    isHeader: false
                 };
                 newCat.posX = this.gPosX;
                 this.arrTextCategories.push(newCat);
@@ -445,7 +449,9 @@ module powerbi.extensibility.visual {
                     sDataRelativeFormatted: null,
                     sSeparator: null,
                     sSplitChar: null,
-                    actualWidth: 0
+                    actualWidth: 0,
+                    offset: 0,
+                    isHeader: true
                 });
             }
 
@@ -513,7 +519,7 @@ module powerbi.extensibility.visual {
                     txtCategory: category,
                     txtDataAbsoluteFormatted: dataAbsoluteFormatted,
                     txtDataRelativeFormatted: dataRelativeFormatted,
-                    txtSeparator: ".....",
+                    txtSeparator: "",
                     txtSplitChar: splitChar,
                     colStatus: colorStatus,
                     colText: colorText,
@@ -524,7 +530,9 @@ module powerbi.extensibility.visual {
                     sDataRelativeFormatted: null,
                     sSeparator: null,
                     sSplitChar: null,
-                    actualWidth: 0
+                    actualWidth: 0,
+                    offset: 0,
+                    isHeader: false
                 };
 
                 if (i === 0 && this.visualCurrentSettings.scroller.displaySource === false) {
@@ -705,7 +713,13 @@ module powerbi.extensibility.visual {
                         var bShouldRenderAbsolute = this.measure0Index >= 0 ? true : false;
                         var bShouldRenderRelative = this.measure1Index >= 0 ? true : false;
 
-                        var y = this.viewportHeight * 0.5 + this.activeFontSize * 0.30;
+                        var y;
+
+                        if (s.isHeader) {
+                            y = this.viewportHeight * 0.5 + this.activeFontSize * 0.3;
+                        } else {
+                            y = this.viewportHeight * 0.5 + this.activeFontSize * 0.6;
+                        }
 
                         s.svgSel = this.svg.append("text").attr("x", s.posX);
                         s.svgSel.attr("font-family", "Lucida Console").attr("font-size", this.activeFontSize + "px");
@@ -724,6 +738,10 @@ module powerbi.extensibility.visual {
                             .attr("y", y)
                             .style("fill", s.colText)
                             ;
+
+                        s.svgSel.each(function () {
+                            s.offset= this.getBBox().width;
+                        });
 
                         if (bShouldRenderAbsolute) {
                             s.sDataAbsoluteFormatted = s.svgSel.append("tspan")
@@ -762,6 +780,10 @@ module powerbi.extensibility.visual {
                             ;
 
                         s.svgSel.each(function () {
+                            //Don't add the offset if it is the header being displayed
+                            if (!s.isHeader){
+                                s.sCategory.attr("y", y - this.getBBox().height);
+                            } 
                             s.actualWidth = this.getBBox().width;
                         });
 
@@ -803,6 +825,9 @@ module powerbi.extensibility.visual {
                 s.posX -= this.activeSpeed * 8 * pIntervalStatic / 100;
                 if (s.svgSel != null) {
                     s.svgSel.attr("x", s.posX);
+                    if (s.sDataAbsoluteFormatted !== null) {
+                        s.sDataAbsoluteFormatted.attr("x", s.posX);
+                    }
                 }
             }
 
