@@ -55,8 +55,8 @@ module powerbi.extensibility.visual {
         },
 
         determinePositive: {
-            default: boolean;
-            custom: string;
+            default: boolean[];
+            custom: string[];
         },
     }
 
@@ -112,8 +112,8 @@ module powerbi.extensibility.visual {
                 displaySource: true
             },
             determinePositive: {
-                default: true,
-                custom: "> 10 * 23",
+                default: [true, true],
+                custom: ["", ""],
             }
         };
         let viewModel: VisualViewModel = {
@@ -156,8 +156,8 @@ module powerbi.extensibility.visual {
                 displaySource: getValue<boolean>(objects, 'startInformation', 'display', defaultSettings.scroller.displaySource)
             },
             determinePositive: {
-                default: getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default),
-                custom: getValue<string>(objects, 'determinePositive', 'custom', defaultSettings.determinePositive.custom)
+                default: [getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default[0]), getValue<boolean>(objects, 'determinePositive', 'default2', undefined)],
+                custom: [getValue<string>(objects, 'determinePositive', 'custom', defaultSettings.determinePositive.custom[0]), getValue<string>(objects, 'determinePositive', 'custom2', undefined)]
             }
         }
         viewModel.settings = visualSettings;
@@ -336,7 +336,7 @@ module powerbi.extensibility.visual {
             this.viewportHeight = height;
 
             if (this.visualCurrentSettings.scroller.pShouldAutoSizeFont) {
-                this.activeFontSize = height * 0.5;
+                this.activeFontSize = height * 0.4;
             }
             else {
                 this.activeFontSize = this.visualCurrentSettings.scroller.pFontSize;
@@ -486,7 +486,7 @@ module powerbi.extensibility.visual {
                 for (var j = 0; j < viewModel.dataPoints[i].measureDeviation.length; j++) {
                     if (bShouldRenderRelative) {
                         //Part of the code that determines if they outcome should be positive or negative
-                        if (this.isPositiveValue(dataRelative[j], viewModel.settings)) {
+                        if (this.isPositiveValue(dataRelative[j], viewModel.settings, j)) {
                             if (this.visualCurrentSettings.scroller.pShouldUsePosNegColoring) {
                                 colorStatus.push(this.visualCurrentSettings.scroller.positiveColour.solid.color);
                             } else {
@@ -559,12 +559,12 @@ module powerbi.extensibility.visual {
             return retValue;
         }
 
-        private isPositiveValue(data, settings) {
-            if (settings.determinePositive.default)
+        private isPositiveValue(data, settings, index) {
+            if (settings.determinePositive.default[index])
                 return data >= 0;
 
-            if (settings.determinePositive.custom.trim().length > 0) {
-                var func = new Function("x", "return x " + settings.determinePositive.custom);
+            if (settings.determinePositive.custom[index].trim().length > 0) {
+                var func = new Function("x", "return x " + settings.determinePositive.custom[index]);
                 return func(data);
             }
 
@@ -606,13 +606,26 @@ module powerbi.extensibility.visual {
                     });
                     break;
                 case 'determinePositive':
+                    var properties = {};
+
+                    if (this.visualDataPoints[0] !== undefined && this.visualDataPoints[0].measureDeviation.length === 2) {
+                        properties = {
+                            default: this.visualCurrentSettings.determinePositive.default[0],
+                            custom: this.visualCurrentSettings.determinePositive.custom[0],
+                            default2: this.visualCurrentSettings.determinePositive.default[1],
+                            custom2: this.visualCurrentSettings.determinePositive.custom[1]
+                        };
+                    } else {
+                        properties = {
+                            default: this.visualCurrentSettings.determinePositive.default[0],
+                            custom: this.visualCurrentSettings.determinePositive.custom[0]
+                        };
+                    }
+
                     objectEnumeration.push({
                         objectName: objectName,
                         displayName: "Determine Positive",
-                        properties: {
-                            default: this.visualCurrentSettings.determinePositive.default,
-                            custom: this.visualCurrentSettings.determinePositive.custom
-                        },
+                        properties: properties,
                         selector: null
                     });
                     break;
