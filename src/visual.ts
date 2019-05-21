@@ -50,7 +50,9 @@ module powerbi.extensibility.visual {
             positiveColour: Fill;
             negativeColour: Fill;
             pInterval: number;
-        }, 
+            displaySource: boolean;
+            displayDeviationSource: boolean;
+        },
 
         determinePositive: {
             default: boolean;
@@ -103,7 +105,9 @@ module powerbi.extensibility.visual {
                 pBgColor: { solid: { color: "#000000" } },
                 positiveColour: { solid: { color: "#96C401" } },
                 negativeColour: { solid: { color: "#DC0002" } },
-                pInterval: 50
+                pInterval: 50,
+                displayDeviationSource: true,
+                displaySource: true
             },
             determinePositive: {
                 default: true,
@@ -145,7 +149,9 @@ module powerbi.extensibility.visual {
                 pBgColor: getValue<Fill>(objects, 'colour', 'pBgColor', defaultSettings.scroller.pBgColor),
                 positiveColour: getValue<Fill>(objects, 'colour', 'positiveColour', defaultSettings.scroller.positiveColour),
                 negativeColour: getValue<Fill>(objects, 'colour', 'negativeColour', defaultSettings.scroller.negativeColour),
-                pInterval: getValue<number>(objects, 'scroller', 'pInterval', defaultSettings.scroller.pInterval)
+                pInterval: getValue<number>(objects, 'scroller', 'pInterval', defaultSettings.scroller.pInterval),
+                displayDeviationSource: getValue<boolean>(objects, 'startInformation', 'displayDeviation', defaultSettings.scroller.displayDeviationSource),
+                displaySource: getValue<boolean>(objects, 'startInformation', 'display', defaultSettings.scroller.displaySource)
             },
             determinePositive: {
                 default: getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default),
@@ -196,11 +202,14 @@ module powerbi.extensibility.visual {
 
 
         var absoluteSource = categorical.values[measureAbsoluteIndex].source.displayName;
-        for (var i = measureDeviationStartIndex; i < categorical.values.length; i++) {
-            var measureSource = measureDeviationStartIndex > -1 ? categorical.values[i].source.displayName : null;
-            
-            if (measureSource !== null)
-                absoluteSource += "-" + measureSource;
+
+        if (visualSettings.scroller.displayDeviationSource) {
+            for (var i = measureDeviationStartIndex; i < categorical.values.length; i++) {
+                var measureSource = measureDeviationStartIndex > -1 ? categorical.values[i].source.displayName : null;
+
+                if (measureSource !== null)
+                    absoluteSource += "-" + measureSource;
+            }
         }
 
         //Change the loop to retrieve the multiple Deviation values instead of just the one
@@ -249,7 +258,7 @@ module powerbi.extensibility.visual {
         private shouldRestartAnimFrame: boolean = false;
         private animationFrameLoopStarted: boolean = false;
         private animationLastTime: any = null;
-        
+
         private dataView: DataView;
         private rect: d3.Selection<SVGElement>;
         private sText: d3.Selection<SVGElement>;
@@ -419,24 +428,26 @@ module powerbi.extensibility.visual {
                 return;
             }
 
-            //Add a text element that will be used to represent the absolute data that is being displayed on the screen
-            this.arrTextCategories.push({
-                txtCategory: viewModel.absoluteSource,
-                txtDataAbsoluteFormatted: "",
-                txtDataRelativeFormatted: "",
-                txtSeparator: ".....",
-                txtSplitChar: [],
-                colStatus: [this.visualCurrentSettings.scroller.pBgColor.solid.color],
-                colText: this.visualCurrentSettings.scroller.pForeColor.solid.color,
-                posX: this.gPosX,
-                svgSel: null,
-                sCategory: null,
-                sDataAbsoluteFormatted: null,
-                sDataRelativeFormatted: null,
-                sSeparator: null,
-                sSplitChar: null,
-                actualWidth: 0
-            });
+            if (this.visualCurrentSettings.scroller.displaySource) {
+                //Add a text element that will be used to represent the absolute data that is being displayed on the screen
+                this.arrTextCategories.push({
+                    txtCategory: viewModel.absoluteSource,
+                    txtDataAbsoluteFormatted: "",
+                    txtDataRelativeFormatted: "",
+                    txtSeparator: ".....",
+                    txtSplitChar: [],
+                    colStatus: [this.visualCurrentSettings.scroller.pBgColor.solid.color],
+                    colText: this.visualCurrentSettings.scroller.pForeColor.solid.color,
+                    posX: this.gPosX,
+                    svgSel: null,
+                    sCategory: null,
+                    sDataAbsoluteFormatted: null,
+                    sDataRelativeFormatted: null,
+                    sSeparator: null,
+                    sSplitChar: null,
+                    actualWidth: 0
+                });
+            }
 
             //This is the part of the code that will create the text based on the values of the data
             for (var i = 0; i < viewModel.dataPoints.length; i++) {
@@ -515,9 +526,11 @@ module powerbi.extensibility.visual {
                     sSplitChar: null,
                     actualWidth: 0
                 };
-                // if (i === 0) {
-                //     newCat.posX = this.gPosX;
-                // }
+
+                if (i === 0 && this.visualCurrentSettings.scroller.displaySource === false) {
+                    newCat.posX = this.gPosX;
+                }
+
                 this.arrTextCategories.push(newCat);
             }
         }
@@ -585,52 +598,63 @@ module powerbi.extensibility.visual {
                     });
                     break;
                 case 'determinePositive':
-                        objectEnumeration.push({
-                            objectName: objectName,
-                            displayName: "Determine Positive",
-                            properties: {
-                                default: this.visualCurrentSettings.determinePositive.default,
-                                custom: this.visualCurrentSettings.determinePositive.custom
-                            },
-                            selector: null
-                        });
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Determine Positive",
+                        properties: {
+                            default: this.visualCurrentSettings.determinePositive.default,
+                            custom: this.visualCurrentSettings.determinePositive.custom
+                        },
+                        selector: null
+                    });
                     break;
                 case 'status':
-                        objectEnumeration.push({
-                            objectName: objectName,
-                            displayName: "Status",
-                            properties: {
-                                pShouldIndicatePosNeg: this.visualCurrentSettings.scroller.pShouldIndicatePosNeg,
-                                pShouldUsePosNegColoring: this.visualCurrentSettings.scroller.pShouldUsePosNegColoring,
-                                pShouldUseTextColoring: this.visualCurrentSettings.scroller.pShouldUseTextColoring,
-                            },
-                            selector: null
-                        });
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Status",
+                        properties: {
+                            pShouldIndicatePosNeg: this.visualCurrentSettings.scroller.pShouldIndicatePosNeg,
+                            pShouldUsePosNegColoring: this.visualCurrentSettings.scroller.pShouldUsePosNegColoring,
+                            pShouldUseTextColoring: this.visualCurrentSettings.scroller.pShouldUseTextColoring,
+                        },
+                        selector: null
+                    });
                     break;
                 case 'text':
-                        objectEnumeration.push({
-                            objectName: objectName,
-                            displayName: "Text",
-                            properties: {
-                                pShouldAutoSizeFont: this.visualCurrentSettings.scroller.pShouldAutoSizeFont,
-                                pFontSize: this.visualCurrentSettings.scroller.pFontSize,
-                                pCustomText: this.visualCurrentSettings.scroller.pCustomText,
-                            },
-                            selector: null
-                        });
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Text",
+                        properties: {
+                            pShouldAutoSizeFont: this.visualCurrentSettings.scroller.pShouldAutoSizeFont,
+                            pFontSize: this.visualCurrentSettings.scroller.pFontSize,
+                            pCustomText: this.visualCurrentSettings.scroller.pCustomText,
+                        },
+                        selector: null
+                    });
                     break;
                 case 'colour':
-                        objectEnumeration.push({
-                            objectName: objectName,
-                            displayName: "Colour",
-                            properties: {
-                                pForeColor: this.visualCurrentSettings.scroller.pForeColor,
-                                pBgColor: this.visualCurrentSettings.scroller.pBgColor,
-                                positiveColour: this.visualCurrentSettings.scroller.positiveColour,
-                                negativeColour: this.visualCurrentSettings.scroller.negativeColour
-                            },
-                            selector: null
-                        });
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Colour",
+                        properties: {
+                            pForeColor: this.visualCurrentSettings.scroller.pForeColor,
+                            pBgColor: this.visualCurrentSettings.scroller.pBgColor,
+                            positiveColour: this.visualCurrentSettings.scroller.positiveColour,
+                            negativeColour: this.visualCurrentSettings.scroller.negativeColour
+                        },
+                        selector: null
+                    });
+                    break;
+                case 'startInformation':
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Display Data Source",
+                        properties: {
+                            display: this.visualCurrentSettings.scroller.displaySource,
+                            displayDeviation: this.visualCurrentSettings.scroller.displayDeviationSource
+                        },
+                        selector: null
+                    });
                     break;
             };
 
@@ -716,7 +740,7 @@ module powerbi.extensibility.visual {
                                     .attr("y", y)
                                     .style("fill", s.colStatus[j])
                                     ;
-                                
+
                                 var colText = s.colText;
 
                                 if (curSettings.scroller.pShouldUseTextColoring) {

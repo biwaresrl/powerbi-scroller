@@ -201,6 +201,23 @@
           }
         }
       }
+    },
+    "startInformation": {
+      "displayName": "Display Data Source",
+      "properties": {
+        "display": {
+          "displayName": "Display",
+          "type": {
+            "bool": true
+          }
+        },
+        "displayDeviation": {
+          "displayName": "Display Deviations",
+          "type": {
+            "bool": true
+          }
+        }
+      }
     }
   }
 }
