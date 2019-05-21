@@ -75,6 +75,7 @@ module powerbi.extensibility.visual {
         sDataRelativeFormatted: d3.Selection<SVGElement>;
         sSplitChar: d3.Selection<SVGElement>;
         sSeparator: d3.Selection<SVGElement>;
+        sHeaders: d3.Selection<SVGElement>[];
         actualWidth: number;
         offset: number;
         isHeader: boolean;
@@ -425,7 +426,8 @@ module powerbi.extensibility.visual {
                     sSplitChar: null,
                     actualWidth: 0, 
                     offset: 0,
-                    isHeader: false
+                    isHeader: false,
+                    sHeaders: null
                 };
                 newCat.posX = this.gPosX;
                 this.arrTextCategories.push(newCat);
@@ -451,7 +453,8 @@ module powerbi.extensibility.visual {
                     sSplitChar: null,
                     actualWidth: 0,
                     offset: 0,
-                    isHeader: true
+                    isHeader: true,
+                    sHeaders: null
                 });
             }
 
@@ -519,11 +522,11 @@ module powerbi.extensibility.visual {
                     txtCategory: category,
                     txtDataAbsoluteFormatted: dataAbsoluteFormatted,
                     txtDataRelativeFormatted: dataRelativeFormatted,
-                    txtSeparator: "",
+                    txtSeparator: ".....",
                     txtSplitChar: splitChar,
                     colStatus: colorStatus,
                     colText: colorText,
-                    posX: this.viewportWidth,
+                    posX: this.viewportWidth + 10,
                     svgSel: null,
                     sCategory: null,
                     sDataAbsoluteFormatted: null,
@@ -532,7 +535,8 @@ module powerbi.extensibility.visual {
                     sSplitChar: null,
                     actualWidth: 0,
                     offset: 0,
-                    isHeader: false
+                    isHeader: false,
+                    sHeaders: null
                 };
 
                 if (i === 0 && this.visualCurrentSettings.scroller.displaySource === false) {
@@ -720,6 +724,7 @@ module powerbi.extensibility.visual {
             var pIntervalStatic = dt * 1.2; // this.pInterval_get(this.dataView)
             for (var i = 0; i < this.arrTextCategories.length; i++) {
                 var s: TextCategory = this.arrTextCategories[i];
+                debugger;
                 if (s.svgSel == null) {
                     // Create element (it's within the viewport) 
                     if (s.posX < this.viewportWidth) {
@@ -752,6 +757,16 @@ module powerbi.extensibility.visual {
                             .style("fill", s.colText)
                             ;
 
+                        var headers = ["header1", "header2", "header3"];
+                        s.sHeaders = [];
+                        for (var j = 0; j < headers.length; j++) {
+                            s.sHeaders.push(s.svgSel.append("tspan")
+                            .text("" + headers[j])
+                            .attr("y", y)
+                            .style("fill", s.colText)
+                            );
+                        }
+
                         s.svgSel.each(function () {
                             s.offset= this.getBBox().width;
                         });
@@ -766,7 +781,7 @@ module powerbi.extensibility.visual {
 
                         if (bShouldRenderRelative) {
                             for (var j = 0; j < s.txtDataRelativeFormatted.length; j++) {
-                                s.sSplitChar = s.svgSel.append("tspan")
+                                s.svgSel.append("tspan")
                                     .text(s.txtSplitChar[j])
                                     .attr("y", y)
                                     .style("fill", s.colStatus[j])
@@ -778,7 +793,7 @@ module powerbi.extensibility.visual {
                                     colText = s.colStatus[j];
                                 }
 
-                                s.sSplitChar = s.svgSel.append("tspan")
+                                s.svgSel.append("tspan")
                                     .text(s.txtDataRelativeFormatted[j])
                                     .attr("y", y)
                                     .style("fill", colText)
@@ -795,9 +810,18 @@ module powerbi.extensibility.visual {
                         s.svgSel.each(function () {
                             //Don't add the offset if it is the header being displayed
                             if (!s.isHeader){
+                                var offset = this.getBBox().height;
+
+                                for (var i = 0; i < s.sHeaders.length; i++) {
+                                    s.sHeaders[i].attr("y", y - offset);
+                                }
+
                                 s.sCategory.attr("y", y - this.getBBox().height);
+
+                                //The BBox doesn't update until later on, so we will remove the size of the category and header
+                                s.actualWidth = this.getBBox().width - s.offset;
+                                console.log(s.actualWidth);
                             } 
-                            s.actualWidth = this.getBBox().width;
                         });
 
                         if (i > 0) {
@@ -841,8 +865,13 @@ module powerbi.extensibility.visual {
                     if (s.sDataAbsoluteFormatted !== null) {
                         s.sDataAbsoluteFormatted.attr("x", s.posX);
                     }
+
+                    if (s.sHeaders[0] !== null) {
+                        s.sHeaders[0].attr("x", s.posX);
+                    }
                 }
             }
+
 
             // Remove elements outside of the left of the viewport
             for (var i = 0; i < this.arrTextCategories.length; i++) {
