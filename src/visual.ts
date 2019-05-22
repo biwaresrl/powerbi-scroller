@@ -79,6 +79,9 @@ module powerbi.extensibility.visual {
         actualWidth: number;
         offset: number;
         isHeader: boolean;
+        headerOffsets: number[];
+        headerSizes: number[];
+        statusSize: number;
     }
 
     function getMeasureIndex(dv: DataViewCategorical, measureName: string): number {
@@ -424,10 +427,13 @@ module powerbi.extensibility.visual {
                     sDataRelativeFormatted: null,
                     sSeparator: null,
                     sSplitChar: null,
-                    actualWidth: 0, 
+                    actualWidth: 0,
                     offset: 0,
                     isHeader: false,
-                    sHeaders: null
+                    sHeaders: null,
+                    headerOffsets: [],
+                    headerSizes: [],
+                    statusSize: 0
                 };
                 newCat.posX = this.gPosX;
                 this.arrTextCategories.push(newCat);
@@ -454,7 +460,10 @@ module powerbi.extensibility.visual {
                     actualWidth: 0,
                     offset: 0,
                     isHeader: true,
-                    sHeaders: null
+                    sHeaders: null,
+                    headerOffsets: [],
+                    headerSizes: [],
+                    statusSize: 0
                 });
             }
 
@@ -536,7 +545,10 @@ module powerbi.extensibility.visual {
                     actualWidth: 0,
                     offset: 0,
                     isHeader: false,
-                    sHeaders: null
+                    sHeaders: null,
+                    headerOffsets: [],
+                    headerSizes: [],
+                    statusSize: 0
                 };
 
                 if (i === 0 && this.visualCurrentSettings.scroller.displaySource === false) {
@@ -724,7 +736,6 @@ module powerbi.extensibility.visual {
             var pIntervalStatic = dt * 1.2; // this.pInterval_get(this.dataView)
             for (var i = 0; i < this.arrTextCategories.length; i++) {
                 var s: TextCategory = this.arrTextCategories[i];
-                debugger;
                 if (s.svgSel == null) {
                     // Create element (it's within the viewport) 
                     if (s.posX < this.viewportWidth) {
@@ -757,19 +768,37 @@ module powerbi.extensibility.visual {
                             .style("fill", s.colText)
                             ;
 
-                        var headers = ["header1", "header2", "header3"];
+                        //var headers = ["header1", "header2", "header3"];
+                        var headers = ["h1", "h2", "h3"];
                         s.sHeaders = [];
+                        s.headerSizes = [];
+
                         for (var j = 0; j < headers.length; j++) {
+                            //Retrieve the current size of the text element before we append the next header (used to get header size)
+                            s.svgSel.each(function () {
+                                s.offset = this.getBBox().width;
+                            });
+
                             s.sHeaders.push(s.svgSel.append("tspan")
-                            .text("" + headers[j])
-                            .attr("y", y)
-                            .style("fill", s.colText)
+                                .text("" + headers[j])
+                                .attr("y", y)
+                                .style("fill", s.colText)
                             );
+
+                            //Using the offset we calculate the size of the header that was just appended
+                            s.svgSel.each(function () {
+                                s.headerSizes.push(this.getBBox().width - s.offset);
+                            });
                         }
 
+                        //Get the current size of the text (to be removed from total height)
                         s.svgSel.each(function () {
-                            s.offset= this.getBBox().width;
+                            s.offset = this.getBBox().width;
                         });
+
+                        //We need to calculate the offsets used for the headers in order for them to be centered above their values
+                        var offsetForHeaders = s.offset;
+                        s.headerOffsets = [];
 
                         if (bShouldRenderAbsolute) {
                             s.sDataAbsoluteFormatted = s.svgSel.append("tspan")
@@ -777,15 +806,27 @@ module powerbi.extensibility.visual {
                                 .attr("y", y)
                                 .style("fill", s.colText)
                                 ;
+
+                            //Get the offset for the first header (being the absolute data)
+                            s.svgSel.each(function () {
+                                s.headerOffsets.push(this.getBBox().width - offsetForHeaders);
+                                offsetForHeaders = this.getBBox().width;
+                            });
                         }
 
                         if (bShouldRenderRelative) {
                             for (var j = 0; j < s.txtDataRelativeFormatted.length; j++) {
+
                                 s.svgSel.append("tspan")
                                     .text(s.txtSplitChar[j])
                                     .attr("y", y)
                                     .style("fill", s.colStatus[j])
                                     ;
+
+                                //Retrieves the size of the the triangle (status + or -)
+                                s.svgSel.each(function () {
+                                    s.statusSize = this.getBBox().width - offsetForHeaders;
+                                });
 
                                 var colText = s.colText;
 
@@ -798,6 +839,11 @@ module powerbi.extensibility.visual {
                                     .attr("y", y)
                                     .style("fill", colText)
                                     ;
+
+                                s.svgSel.each(function () {
+                                    s.headerOffsets.push(this.getBBox().width - offsetForHeaders - s.statusSize);
+                                    offsetForHeaders = this.getBBox().width;
+                                });
                             }
                         }
 
@@ -809,7 +855,7 @@ module powerbi.extensibility.visual {
 
                         s.svgSel.each(function () {
                             //Don't add the offset if it is the header being displayed
-                            if (!s.isHeader){
+                            if (!s.isHeader) {
                                 var offset = this.getBBox().height;
 
                                 for (var i = 0; i < s.sHeaders.length; i++) {
@@ -820,8 +866,7 @@ module powerbi.extensibility.visual {
 
                                 //The BBox doesn't update until later on, so we will remove the size of the category and header
                                 s.actualWidth = this.getBBox().width - s.offset;
-                                console.log(s.actualWidth);
-                            } 
+                            }
                         });
 
                         if (i > 0) {
@@ -844,6 +889,8 @@ module powerbi.extensibility.visual {
                     }
                 }
             }
+
+            //debugger;
             this.activeSpeed += (this.activeTargetSpeed - this.activeSpeed) * 0.5;
             if (this.activeSpeed < 0) {
                 this.activeSpeed = 0;
@@ -862,12 +909,20 @@ module powerbi.extensibility.visual {
                 s.posX -= this.activeSpeed * 8 * pIntervalStatic / 100;
                 if (s.svgSel != null) {
                     s.svgSel.attr("x", s.posX);
+                    //Move the absolute data to the start of the box (taking the place of the category)
                     if (s.sDataAbsoluteFormatted !== null) {
                         s.sDataAbsoluteFormatted.attr("x", s.posX);
                     }
 
-                    if (s.sHeaders[0] !== null) {
-                        s.sHeaders[0].attr("x", s.posX);
+                    //Loop through all of the headers to add the appropriate offset to them in order for them to be centered on top of their values
+                    if (s.headerOffsets !== null) {
+                        var headerSize = 0;
+                        for (var j = 0; j < s.sHeaders.length; j++) {
+                            s.sHeaders[j].attr("x", s.posX + headerSize + (s.headerOffsets[j] / 2) - (s.headerSizes[j] / 2));
+
+                            //Append the offset of the previous header and the status symbol (triangle) to the total offset
+                            headerSize += s.headerOffsets[j] + s.statusSize;
+                        }
                     }
                 }
             }
