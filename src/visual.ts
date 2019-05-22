@@ -56,6 +56,10 @@ module powerbi.extensibility.visual {
             default: boolean[];
             custom: string[];
         },
+
+        headers: {
+            headers: string[];
+        }
     }
 
     export interface TextCategory {
@@ -114,6 +118,9 @@ module powerbi.extensibility.visual {
             determinePositive: {
                 default: [true, true],
                 custom: ["", ""],
+            },
+            headers: {
+                headers: []
             }
         };
         let viewModel: VisualViewModel = {
@@ -121,16 +128,6 @@ module powerbi.extensibility.visual {
             settings: <VisualSettings>{},
             absoluteSource: "",
         };
-
-        /*
-        if (!dataViews
-            || !dataViews[0]
-            || !dataViews[0].categorical
-            || !dataViews[0].categorical.categories
-            || !dataViews[0].categorical.categories[0].source
-            || !dataViews[0].categorical.values)
-            return viewModel;
-            */
 
         if (!dataViews[0]) {
             return viewModel;
@@ -154,8 +151,11 @@ module powerbi.extensibility.visual {
                 pInterval: getValue<number>(objects, 'scroller', 'pInterval', defaultSettings.scroller.pInterval)
             },
             determinePositive: {
-                default: [getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default[0]), getValue<boolean>(objects, 'determinePositive', 'default2', undefined)],
-                custom: [getValue<string>(objects, 'determinePositive', 'custom', defaultSettings.determinePositive.custom[0]), getValue<string>(objects, 'determinePositive', 'custom2', undefined)]
+                default: [getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default[0]), getValue<boolean>(objects, 'determinePositive', 'default2', undefined)].filter(x => x !== undefined),
+                custom: [getValue<string>(objects, 'determinePositive', 'custom', defaultSettings.determinePositive.custom[0]), getValue<string>(objects, 'determinePositive', 'custom2', undefined)].filter(x => x !== undefined)
+            },
+            headers: {
+                headers: [getValue<string>(objects, 'headers', 'header1', ""), getValue<string>(objects, 'headers', 'header2', undefined), getValue<string>(objects, 'headers', 'header3', undefined)].filter(x => x !== undefined)
             }
         }
         viewModel.settings = visualSettings;
@@ -167,7 +167,6 @@ module powerbi.extensibility.visual {
         }
 
         // Set property limits
-
         if (visualSettings.scroller.pFontSize > 1000) {
             visualSettings.scroller.pFontSize = 1000;
         } else if (visualSettings.scroller.pFontSize < 0) {
@@ -202,6 +201,7 @@ module powerbi.extensibility.visual {
 
 
         var absoluteSource = categorical.values[measureAbsoluteIndex].source.displayName;
+        var countOfMeasures;
 
         //Change the loop to retrieve the multiple Deviation values instead of just the one
         for (let i = 0, len = Math.max(category.values.length, dataValue.values.length); i < len; i++) {
@@ -221,8 +221,17 @@ module powerbi.extensibility.visual {
                 measureDeviation: measureDev,
                 measureAbsoluteFormatted: measureAbsForm,
                 measureDeviationFormatted: measureDevForm,
-
             });
+
+            if (i === 0) {
+                //Verify that their are not more headers than their are measures given
+                countOfMeasures = measureDev.length + ((measureAbs) ? 1 : 0);
+            }
+        }
+
+        //Removes the extra headers that are left over from the last reading of data
+        while (visualSettings.headers.headers.length > countOfMeasures) {
+            visualSettings.headers.headers.pop();
         }
 
         return {
@@ -643,13 +652,13 @@ module powerbi.extensibility.visual {
                 case 'headers':
                     var propertiesHeaders = {
                     };
-                    
+
                     if (this.visualDataPoints[0] !== undefined) {
                         var count = this.visualDataPoints[0].measureDeviation.length;
                         count += (this.visualDataPoints[0].measureAbsolute) ? 1 : 0;
 
                         for (var i = 1; i <= count; i++) {
-                            propertiesHeaders["header" + i] = "";
+                            propertiesHeaders["header" + i] = this.visualCurrentSettings.headers.headers[i - 1];
                         }
                     }
 
@@ -736,7 +745,7 @@ module powerbi.extensibility.visual {
                             ;
 
                         //var headers = ["header1", "header2", "header3"];
-                        var headers = ["h1", "h2", "h3"];
+                        var headers = this.visualCurrentSettings.headers.headers;
                         s.sHeaders = [];
                         s.headerSizes = [];
 
