@@ -293,7 +293,7 @@ module powerbi.extensibility.visual {
 
         public update(options: VisualUpdateOptions) {
             this.shouldRestartAnimFrame = true;
-
+            debugger;
             let viewModel: VisualViewModel = visualTransform(options, this.host, this);
             let settings = this.visualCurrentSettings = viewModel.settings;
             this.visualDataPoints = viewModel.dataPoints;
@@ -549,7 +549,8 @@ module powerbi.extensibility.visual {
             if (settings.determinePositive.default[index])
                 return data >= 0;
 
-            if (settings.determinePositive.custom.length >= index && settings.determinePositive.custom[index].trim().length > 0) {
+                debugger;
+            if (index < settings.determinePositive.custom.length && settings.determinePositive.custom[index].trim().length > 0) {
                 var func = new Function("x", "return x " + settings.determinePositive.custom[index]);
                 return func(data);
             }
