@@ -330,7 +330,7 @@ module powerbi.extensibility.visual {
             this.viewportHeight = height;
 
             if (this.visualCurrentSettings.scroller.pShouldAutoSizeFont) {
-                this.activeFontSize = height * 0.4;
+                this.activeFontSize = height * 0.2;
             }
             else {
                 this.activeFontSize = this.visualCurrentSettings.scroller.pFontSize;
@@ -544,7 +544,7 @@ module powerbi.extensibility.visual {
             if (settings.determinePositive.default[index])
                 return data >= 0;
 
-            if (settings.determinePositive.custom[index].trim().length > 0) {
+            if (settings.determinePositive.custom.length >= index && settings.determinePositive.custom[index].trim().length > 0) {
                 var func = new Function("x", "return x " + settings.determinePositive.custom[index]);
                 return func(data);
             }
@@ -721,13 +721,8 @@ module powerbi.extensibility.visual {
                             bShouldRenderRelative = this.visualDataPoints[0].measureDeviation.length > 0 ? true : false;
                         }
 
-                        var y;
+                        var y = this.viewportHeight * 0.5 + 3 * (this.activeFontSize * 0.4);
 
-                        if (s.isHeader) {
-                            y = this.viewportHeight * 0.5 + this.activeFontSize * 0.3;
-                        } else {
-                            y = this.viewportHeight * 0.5 + this.activeFontSize * 0.6;
-                        }
 
                         s.svgSel = this.svg.append("text").attr("x", s.posX);
                         s.svgSel.attr("font-family", "Lucida Console").attr("font-size", this.activeFontSize + "px");
