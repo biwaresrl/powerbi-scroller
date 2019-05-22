@@ -25,7 +25,6 @@ module powerbi.extensibility.visual {
     interface VisualViewModel {
         dataPoints: VisualDataPoint[];
         settings: VisualSettings;
-        absoluteSource: string;
     };
 
     interface VisualDataPoint {
@@ -50,12 +49,16 @@ module powerbi.extensibility.visual {
             positiveColour: Fill;
             negativeColour: Fill;
             pInterval: number;
-        }, 
+        },
 
         determinePositive: {
-            default: boolean;
-            custom: string;
+            default: boolean[];
+            custom: string[];
         },
+
+        headers: {
+            headers: string[];
+        }
     }
 
     export interface TextCategory {
@@ -73,7 +76,15 @@ module powerbi.extensibility.visual {
         sDataRelativeFormatted: d3.Selection<SVGElement>;
         sSplitChar: d3.Selection<SVGElement>;
         sSeparator: d3.Selection<SVGElement>;
+        sHeaders: d3.Selection<SVGElement>[];
+        centeredLines: d3.Selection<SVGElement>[];
         actualWidth: number;
+        offset: number;
+        categorySize: number;
+        headerOffsets: number[];
+        headerSizes: number[];
+        statusSize: number;
+        firstAbsoluteValue: d3.Selection<SVGElement>;
     }
 
     function getMeasureIndex(dv: DataViewCategorical, measureName: string): number {
@@ -106,25 +117,17 @@ module powerbi.extensibility.visual {
                 pInterval: 50
             },
             determinePositive: {
-                default: true,
-                custom: "> 10 * 23",
+                default: [true, true],
+                custom: ["", ""],
+            },
+            headers: {
+                headers: []
             }
         };
         let viewModel: VisualViewModel = {
             dataPoints: [],
             settings: <VisualSettings>{},
-            absoluteSource: "",
         };
-
-        /*
-        if (!dataViews
-            || !dataViews[0]
-            || !dataViews[0].categorical
-            || !dataViews[0].categorical.categories
-            || !dataViews[0].categorical.categories[0].source
-            || !dataViews[0].categorical.values)
-            return viewModel;
-            */
 
         if (!dataViews[0]) {
             return viewModel;
@@ -148,8 +151,11 @@ module powerbi.extensibility.visual {
                 pInterval: getValue<number>(objects, 'scroller', 'pInterval', defaultSettings.scroller.pInterval)
             },
             determinePositive: {
-                default: getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default),
-                custom: getValue<string>(objects, 'determinePositive', 'custom', defaultSettings.determinePositive.custom)
+                default: [getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default[0]), getValue<boolean>(objects, 'determinePositive', 'default2', undefined)].filter(x => x !== undefined),
+                custom: [getValue<string>(objects, 'determinePositive', 'custom', defaultSettings.determinePositive.custom[0]), getValue<string>(objects, 'determinePositive', 'custom2', undefined)].filter(x => x !== undefined)
+            },
+            headers: {
+                headers: [getValue<string>(objects, 'headers', 'header1', ""), getValue<string>(objects, 'headers', 'header2', undefined), getValue<string>(objects, 'headers', 'header3', undefined)].filter(x => x !== undefined)
             }
         }
         viewModel.settings = visualSettings;
@@ -161,7 +167,6 @@ module powerbi.extensibility.visual {
         }
 
         // Set property limits
-
         if (visualSettings.scroller.pFontSize > 1000) {
             visualSettings.scroller.pFontSize = 1000;
         } else if (visualSettings.scroller.pFontSize < 0) {
@@ -194,14 +199,7 @@ module powerbi.extensibility.visual {
 
         let visualDataPoints: VisualDataPoint[] = [];
 
-
-        var absoluteSource = categorical.values[measureAbsoluteIndex].source.displayName;
-        for (var i = measureDeviationStartIndex; i < categorical.values.length; i++) {
-            var measureSource = measureDeviationStartIndex > -1 ? categorical.values[i].source.displayName : null;
-            
-            if (measureSource !== null)
-                absoluteSource += "-" + measureSource;
-        }
+        var countOfMeasures;
 
         //Change the loop to retrieve the multiple Deviation values instead of just the one
         for (let i = 0, len = Math.max(category.values.length, dataValue.values.length); i < len; i++) {
@@ -210,7 +208,7 @@ module powerbi.extensibility.visual {
             var measureDev = [];
             var measureDevForm = [];
 
-            for (var j = measureDeviationStartIndex; j < categorical.values.length; j++) {
+            for (var j = measureDeviationStartIndex; j < categorical.values.length && j !== -1; j++) {
                 measureDev.push(measureDeviationStartIndex > -1 ? <number>categorical.values[j].values[i] : null);
                 measureDevForm.push(measureDeviationStartIndex > -1 ? valueFormatter.format(<number>categorical.values[j].values[i], dataViews[0].categorical.values.grouped()[0].values[j].source.format) : null);
             }
@@ -221,14 +219,22 @@ module powerbi.extensibility.visual {
                 measureDeviation: measureDev,
                 measureAbsoluteFormatted: measureAbsForm,
                 measureDeviationFormatted: measureDevForm,
-
             });
+
+            if (i === 0) {
+                //Verify that their are not more headers than their are measures given
+                countOfMeasures = measureDev.length + ((measureAbs) ? 1 : 0);
+            }
+        }
+
+        //Removes the extra headers that are left over from the last reading of data
+        while (visualSettings.headers.headers.length > countOfMeasures) {
+            visualSettings.headers.headers.pop();
         }
 
         return {
             dataPoints: visualDataPoints,
-            settings: visualSettings,
-            absoluteSource: absoluteSource,
+            settings: visualSettings
         };
 
 
@@ -249,7 +255,7 @@ module powerbi.extensibility.visual {
         private shouldRestartAnimFrame: boolean = false;
         private animationFrameLoopStarted: boolean = false;
         private animationLastTime: any = null;
-        
+
         private dataView: DataView;
         private rect: d3.Selection<SVGElement>;
         private sText: d3.Selection<SVGElement>;
@@ -307,6 +313,8 @@ module powerbi.extensibility.visual {
                 .attr("width", width)
                 .attr("height", height);
 
+            d3.selectAll(".removable").remove();
+
             var dataViews = options.dataViews;
             if (!dataViews) return;
 
@@ -325,7 +333,7 @@ module powerbi.extensibility.visual {
             this.viewportHeight = height;
 
             if (this.visualCurrentSettings.scroller.pShouldAutoSizeFont) {
-                this.activeFontSize = height * 0.5;
+                this.activeFontSize = height * 0.2;
             }
             else {
                 this.activeFontSize = this.visualCurrentSettings.scroller.pFontSize;
@@ -412,35 +420,24 @@ module powerbi.extensibility.visual {
                     sDataRelativeFormatted: null,
                     sSeparator: null,
                     sSplitChar: null,
-                    actualWidth: 0
+                    actualWidth: 0,
+                    offset: 0,
+                    categorySize: 0,
+                    sHeaders: null,
+                    headerOffsets: [],
+                    headerSizes: [],
+                    statusSize: 0,
+                    firstAbsoluteValue: null,
+                    centeredLines: []
                 };
                 newCat.posX = this.gPosX;
                 this.arrTextCategories.push(newCat);
                 return;
             }
 
-            //Add a text element that will be used to represent the absolute data that is being displayed on the screen
-            this.arrTextCategories.push({
-                txtCategory: viewModel.absoluteSource,
-                txtDataAbsoluteFormatted: "",
-                txtDataRelativeFormatted: "",
-                txtSeparator: ".....",
-                txtSplitChar: [],
-                colStatus: [this.visualCurrentSettings.scroller.pBgColor.solid.color],
-                colText: this.visualCurrentSettings.scroller.pForeColor.solid.color,
-                posX: this.gPosX,
-                svgSel: null,
-                sCategory: null,
-                sDataAbsoluteFormatted: null,
-                sDataRelativeFormatted: null,
-                sSeparator: null,
-                sSplitChar: null,
-                actualWidth: 0
-            });
-
             //This is the part of the code that will create the text based on the values of the data
             for (var i = 0; i < viewModel.dataPoints.length; i++) {
-                var category = viewModel.dataPoints[i].categoryText;
+                var category = viewModel.dataPoints[i].categoryText || "Null";
 
                 var bShouldRenderAbsolute = viewModel.dataPoints[i].measureAbsolute === null ? false : true;
                 var bShouldRenderRelative = viewModel.dataPoints[i].measureDeviation === null ? false : true;
@@ -469,7 +466,7 @@ module powerbi.extensibility.visual {
                 for (var j = 0; j < viewModel.dataPoints[i].measureDeviation.length; j++) {
                     if (bShouldRenderRelative) {
                         //Part of the code that determines if they outcome should be positive or negative
-                        if (this.isPositiveValue(dataRelative[j], viewModel.settings)) {
+                        if (this.isPositiveValue(dataRelative[j], viewModel.settings, j)) {
                             if (this.visualCurrentSettings.scroller.pShouldUsePosNegColoring) {
                                 colorStatus.push(this.visualCurrentSettings.scroller.positiveColour.solid.color);
                             } else {
@@ -506,18 +503,28 @@ module powerbi.extensibility.visual {
                     txtSplitChar: splitChar,
                     colStatus: colorStatus,
                     colText: colorText,
-                    posX: this.viewportWidth,
+                    posX: this.viewportWidth + 10,
                     svgSel: null,
                     sCategory: null,
                     sDataAbsoluteFormatted: null,
                     sDataRelativeFormatted: null,
                     sSeparator: null,
                     sSplitChar: null,
-                    actualWidth: 0
+                    actualWidth: 0,
+                    offset: 0,
+                    categorySize: 0,
+                    sHeaders: null,
+                    headerOffsets: [],
+                    headerSizes: [],
+                    statusSize: 0,
+                    firstAbsoluteValue: null,
+                    centeredLines: []
                 };
-                // if (i === 0) {
-                //     newCat.posX = this.gPosX;
-                // }
+
+                if (i === 0) {
+                    newCat.posX = this.gPosX;
+                }
+
                 this.arrTextCategories.push(newCat);
             }
         }
@@ -538,12 +545,12 @@ module powerbi.extensibility.visual {
             return retValue;
         }
 
-        private isPositiveValue(data, settings) {
-            if (settings.determinePositive.default)
+        private isPositiveValue(data, settings, index) {
+            if (settings.determinePositive.default[index])
                 return data >= 0;
 
-            if (settings.determinePositive.custom.trim().length > 0) {
-                var func = new Function("x", "return x " + settings.determinePositive.custom);
+            if (settings.determinePositive.custom.length >= index && settings.determinePositive.custom[index].trim().length > 0) {
+                var func = new Function("x", "return x " + settings.determinePositive.custom[index]);
                 return func(data);
             }
 
@@ -585,52 +592,85 @@ module powerbi.extensibility.visual {
                     });
                     break;
                 case 'determinePositive':
-                        objectEnumeration.push({
-                            objectName: objectName,
-                            displayName: "Determine Positive",
-                            properties: {
-                                default: this.visualCurrentSettings.determinePositive.default,
-                                custom: this.visualCurrentSettings.determinePositive.custom
-                            },
-                            selector: null
-                        });
+                    var properties = {};
+
+                    if (this.visualDataPoints[0] !== undefined && this.visualDataPoints[0].measureDeviation.length === 2) {
+                        properties = {
+                            default: this.visualCurrentSettings.determinePositive.default[0],
+                            custom: this.visualCurrentSettings.determinePositive.custom[0],
+                            default2: this.visualCurrentSettings.determinePositive.default[1],
+                            custom2: this.visualCurrentSettings.determinePositive.custom[1]
+                        };
+                    } else {
+                        properties = {
+                            default: this.visualCurrentSettings.determinePositive.default[0],
+                            custom: this.visualCurrentSettings.determinePositive.custom[0]
+                        };
+                    }
+
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Determine Positive",
+                        properties: properties,
+                        selector: null
+                    });
                     break;
                 case 'status':
-                        objectEnumeration.push({
-                            objectName: objectName,
-                            displayName: "Status",
-                            properties: {
-                                pShouldIndicatePosNeg: this.visualCurrentSettings.scroller.pShouldIndicatePosNeg,
-                                pShouldUsePosNegColoring: this.visualCurrentSettings.scroller.pShouldUsePosNegColoring,
-                                pShouldUseTextColoring: this.visualCurrentSettings.scroller.pShouldUseTextColoring,
-                            },
-                            selector: null
-                        });
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Status",
+                        properties: {
+                            pShouldIndicatePosNeg: this.visualCurrentSettings.scroller.pShouldIndicatePosNeg,
+                            pShouldUsePosNegColoring: this.visualCurrentSettings.scroller.pShouldUsePosNegColoring,
+                            pShouldUseTextColoring: this.visualCurrentSettings.scroller.pShouldUseTextColoring,
+                        },
+                        selector: null
+                    });
                     break;
                 case 'text':
-                        objectEnumeration.push({
-                            objectName: objectName,
-                            displayName: "Text",
-                            properties: {
-                                pShouldAutoSizeFont: this.visualCurrentSettings.scroller.pShouldAutoSizeFont,
-                                pFontSize: this.visualCurrentSettings.scroller.pFontSize,
-                                pCustomText: this.visualCurrentSettings.scroller.pCustomText,
-                            },
-                            selector: null
-                        });
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Text",
+                        properties: {
+                            pShouldAutoSizeFont: this.visualCurrentSettings.scroller.pShouldAutoSizeFont,
+                            pFontSize: this.visualCurrentSettings.scroller.pFontSize,
+                            pCustomText: this.visualCurrentSettings.scroller.pCustomText,
+                        },
+                        selector: null
+                    });
                     break;
                 case 'colour':
-                        objectEnumeration.push({
-                            objectName: objectName,
-                            displayName: "Colour",
-                            properties: {
-                                pForeColor: this.visualCurrentSettings.scroller.pForeColor,
-                                pBgColor: this.visualCurrentSettings.scroller.pBgColor,
-                                positiveColour: this.visualCurrentSettings.scroller.positiveColour,
-                                negativeColour: this.visualCurrentSettings.scroller.negativeColour
-                            },
-                            selector: null
-                        });
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Colour",
+                        properties: {
+                            pForeColor: this.visualCurrentSettings.scroller.pForeColor,
+                            pBgColor: this.visualCurrentSettings.scroller.pBgColor,
+                            positiveColour: this.visualCurrentSettings.scroller.positiveColour,
+                            negativeColour: this.visualCurrentSettings.scroller.negativeColour
+                        },
+                        selector: null
+                    });
+                    break;
+                case 'headers':
+                    var propertiesHeaders = {
+                    };
+
+                    if (this.visualDataPoints[0] !== undefined) {
+                        var count = this.visualDataPoints[0].measureDeviation.length;
+                        count += (this.visualDataPoints[0].measureAbsolute) ? 1 : 0;
+
+                        for (var i = 1; i <= count; i++) {
+                            propertiesHeaders["header" + i] = this.visualCurrentSettings.headers.headers[i - 1];
+                        }
+                    }
+
+                    objectEnumeration.push({
+                        objectName: objectName,
+                        displayName: "Headers",
+                        properties: propertiesHeaders,
+                        selector: null
+                    });
                     break;
             };
 
@@ -673,18 +713,28 @@ module powerbi.extensibility.visual {
             var curSettings = this.visualCurrentSettings;
 
             var pIntervalStatic = dt * 1.2; // this.pInterval_get(this.dataView)
+            debugger;
             for (var i = 0; i < this.arrTextCategories.length; i++) {
                 var s: TextCategory = this.arrTextCategories[i];
                 if (s.svgSel == null) {
                     // Create element (it's within the viewport) 
                     if (s.posX < this.viewportWidth) {
-                        var bShouldRenderAbsolute = this.measure0Index >= 0 ? true : false;
-                        var bShouldRenderRelative = this.measure1Index >= 0 ? true : false;
+                        var bShouldRenderAbsolute = false;
+                        var bShouldRenderRelative = false;
 
-                        var y = this.viewportHeight * 0.5 + this.activeFontSize * 0.30;
+                        if (this.visualDataPoints.length > 0) {
+                            bShouldRenderAbsolute = (this.visualDataPoints[0].measureAbsolute) ? true : false;
+                            bShouldRenderRelative = this.visualDataPoints[0].measureDeviation.length > 0 ? true : false;
+                        }
+
+                        var y = this.viewportHeight * 0.5 + 3 * (this.activeFontSize * 0.4);
+
 
                         s.svgSel = this.svg.append("text").attr("x", s.posX);
                         s.svgSel.attr("font-family", "Lucida Console").attr("font-size", this.activeFontSize + "px");
+                        s.centeredLines[0] = this.svg.append("line").classed("removable", true);
+                        s.centeredLines[1] = this.svg.append("line").classed("removable", true);
+
 
                         var that = this;
                         s.svgSel
@@ -696,10 +746,47 @@ module powerbi.extensibility.visual {
                             });
 
                         s.sCategory = s.svgSel.append("tspan")
-                            .text(" " + s.txtCategory + ": ")
+                            .text(s.txtCategory)
                             .attr("y", y)
                             .style("fill", s.colText)
                             ;
+
+                        //Get the size of the category that will be used to center it 
+                        s.svgSel.each(function () {
+                            s.categorySize = this.getBBox().width;
+                        });
+
+                        //var headers = ["header1", "header2", "header3"];
+                        var headers = this.visualCurrentSettings.headers.headers;
+                        s.sHeaders = [];
+                        s.headerSizes = [];
+
+                        for (var j = 0; j < headers.length; j++) {
+                            //Retrieve the current size of the text element before we append the next header (used to get header size)
+                            s.svgSel.each(function () {
+                                s.offset = this.getBBox().width;
+                            });
+
+                            s.sHeaders.push(s.svgSel.append("tspan")
+                                .text("" + headers[j])
+                                .attr("y", y)
+                                .style("fill", s.colText)
+                            );
+
+                            //Using the offset we calculate the size of the header that was just appended
+                            s.svgSel.each(function () {
+                                s.headerSizes.push(this.getBBox().width - s.offset);
+                            });
+                        }
+
+                        //Get the current size of the text (to be removed from total height)
+                        s.svgSel.each(function () {
+                            s.offset = this.getBBox().width;
+                        });
+
+                        //We need to calculate the offsets used for the headers in order for them to be centered above their values
+                        var offsetForHeaders = s.offset;
+                        s.headerOffsets = [];
 
                         if (bShouldRenderAbsolute) {
                             s.sDataAbsoluteFormatted = s.svgSel.append("tspan")
@@ -707,29 +794,57 @@ module powerbi.extensibility.visual {
                                 .attr("y", y)
                                 .style("fill", s.colText)
                                 ;
+
+                            //Get the offset for the first header (being the absolute data)
+                            s.svgSel.each(function () {
+                                s.headerOffsets.push(this.getBBox().width - offsetForHeaders);
+                                offsetForHeaders = this.getBBox().width;
+                            });
                         }
 
                         if (bShouldRenderRelative) {
                             for (var j = 0; j < s.txtDataRelativeFormatted.length; j++) {
-                                s.sSplitChar = s.svgSel.append("tspan")
+                                var temp = s.svgSel.append("tspan")
                                     .text(s.txtSplitChar[j])
                                     .attr("y", y)
                                     .style("fill", s.colStatus[j])
                                     ;
-                                
+
+                                if (j === 0) {
+                                    s.firstAbsoluteValue = temp;
+                                }
+
+                                //Retrieves the size of the the triangle (status + or -)
+                                s.svgSel.each(function () {
+                                    s.statusSize = this.getBBox().width - offsetForHeaders;
+                                });
+
                                 var colText = s.colText;
 
                                 if (curSettings.scroller.pShouldUseTextColoring) {
                                     colText = s.colStatus[j];
                                 }
 
-                                s.sSplitChar = s.svgSel.append("tspan")
+                                s.svgSel.append("tspan")
                                     .text(s.txtDataRelativeFormatted[j])
                                     .attr("y", y)
                                     .style("fill", colText)
                                     ;
+
+                                s.svgSel.each(function () {
+                                    s.headerOffsets.push(this.getBBox().width - offsetForHeaders - s.statusSize);
+                                    offsetForHeaders = this.getBBox().width;
+                                });
                             }
                         }
+
+                        var offsetOfCategoryAndHeaders = s.offset;
+
+                        var widthBeforeSpiltChar;
+
+                        s.svgSel.each(function() {
+                            widthBeforeSpiltChar = this.getBBox().width;
+                        });
 
                         s.sSplitChar = s.svgSel.append("tspan")
                             .text(s.txtSeparator)
@@ -738,7 +853,24 @@ module powerbi.extensibility.visual {
                             ;
 
                         s.svgSel.each(function () {
-                            s.actualWidth = this.getBBox().width;
+                            //Don't add the offset if it is the header being displayed
+                            var offset = this.getBBox().height;
+
+                            for (var i = 0; i < s.sHeaders.length; i++) {
+                                s.sHeaders[i].attr("y", y - offset);
+                            }
+
+                            s.sCategory.attr("y", y - this.getBBox().height);
+
+                            var yLines = y - (this.getBBox().height * 0.75);
+                            s.centeredLines[0].attr("y1", yLines).attr("y2",  yLines);
+                            s.centeredLines[1].attr("y1",  yLines).attr("y2",  yLines);
+
+                            //The BBox doesn't update until later on, so we will remove the size of the category and header
+                            s.actualWidth = this.getBBox().width - offsetOfCategoryAndHeaders;
+
+                            //Use s.offset to get the size of the split char in order to take it into consideration for the centering
+                            s.offset = this.getBBox().width - widthBeforeSpiltChar;
                         });
 
                         if (i > 0) {
@@ -761,6 +893,7 @@ module powerbi.extensibility.visual {
                     }
                 }
             }
+
             this.activeSpeed += (this.activeTargetSpeed - this.activeSpeed) * 0.5;
             if (this.activeSpeed < 0) {
                 this.activeSpeed = 0;
@@ -779,8 +912,42 @@ module powerbi.extensibility.visual {
                 s.posX -= this.activeSpeed * 8 * pIntervalStatic / 100;
                 if (s.svgSel != null) {
                     s.svgSel.attr("x", s.posX);
+
+                    //Calculate the width of the element without the spacing
+                    var actualWidth = s.actualWidth - s.offset;
+
+                    //Center the category
+                    s.sCategory.attr("x",  s.posX + (actualWidth - s.categorySize) / 2);
+
+                    //Fill up the space next to the category with lines
+                    s.centeredLines[0].attr("x1", s.posX).attr("x2",  s.posX + (actualWidth - s.categorySize) / 2).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                    s.centeredLines[1].attr("x1",  s.posX + ((actualWidth + s.categorySize) / 2)).attr("x2", s.posX + actualWidth).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                    
+                    //Move the absolute data to the start of the box (taking the place of the category)
+                    if (s.sDataAbsoluteFormatted !== null) {
+                        s.sDataAbsoluteFormatted.attr("x", s.posX);
+                    } else if (s.firstAbsoluteValue !== null) {
+                        s.firstAbsoluteValue.attr("x", s.posX);
+                    }
+
+                    //Loop through all of the headers to add the appropriate offset to them in order for them to be centered on top of their values
+                    if (s.headerOffsets !== null) {
+                        var headerSize = 0;
+
+                        //If the first information is not the absolute data, then we need to take into consideration the status size
+                        if (s.sDataAbsoluteFormatted === null)
+                            headerSize = s.statusSize;
+
+                        for (var j = 0; j < s.sHeaders.length; j++) {
+                            s.sHeaders[j].attr("x", s.posX + headerSize + (s.headerOffsets[j] / 2) - (s.headerSizes[j] / 2));
+
+                            //Append the offset of the previous header and the status symbol (triangle) to the total offset
+                            headerSize += s.headerOffsets[j] + s.statusSize;
+                        }
+                    }
                 }
             }
+
 
             // Remove elements outside of the left of the viewport
             for (var i = 0; i < this.arrTextCategories.length; i++) {
