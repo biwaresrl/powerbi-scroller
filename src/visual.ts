@@ -313,6 +313,8 @@ module powerbi.extensibility.visual {
                 .attr("width", width)
                 .attr("height", height);
 
+            d3.selectAll(".removable").remove();
+
             var dataViews = options.dataViews;
             if (!dataViews) return;
 
@@ -730,8 +732,8 @@ module powerbi.extensibility.visual {
 
                         s.svgSel = this.svg.append("text").attr("x", s.posX);
                         s.svgSel.attr("font-family", "Lucida Console").attr("font-size", this.activeFontSize + "px");
-                        s.centeredLines[0] = this.svg.append("line");
-                        s.centeredLines[1] = this.svg.append("line");
+                        s.centeredLines[0] = this.svg.append("line").classed("removable", true);
+                        s.centeredLines[1] = this.svg.append("line").classed("removable", true);
 
 
                         var that = this;
