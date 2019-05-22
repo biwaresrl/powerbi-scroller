@@ -77,9 +77,10 @@ module powerbi.extensibility.visual {
         sSplitChar: d3.Selection<SVGElement>;
         sSeparator: d3.Selection<SVGElement>;
         sHeaders: d3.Selection<SVGElement>[];
+        centeredLines: d3.Selection<SVGElement>[];
         actualWidth: number;
         offset: number;
-        isHeader: boolean;
+        categorySize: number;
         headerOffsets: number[];
         headerSizes: number[];
         statusSize: number;
@@ -419,12 +420,13 @@ module powerbi.extensibility.visual {
                     sSplitChar: null,
                     actualWidth: 0,
                     offset: 0,
-                    isHeader: false,
+                    categorySize: 0,
                     sHeaders: null,
                     headerOffsets: [],
                     headerSizes: [],
                     statusSize: 0,
-                    firstAbsoluteValue: null
+                    firstAbsoluteValue: null,
+                    centeredLines: []
                 };
                 newCat.posX = this.gPosX;
                 this.arrTextCategories.push(newCat);
@@ -433,7 +435,7 @@ module powerbi.extensibility.visual {
 
             //This is the part of the code that will create the text based on the values of the data
             for (var i = 0; i < viewModel.dataPoints.length; i++) {
-                var category = viewModel.dataPoints[i].categoryText;
+                var category = viewModel.dataPoints[i].categoryText || "Null";
 
                 var bShouldRenderAbsolute = viewModel.dataPoints[i].measureAbsolute === null ? false : true;
                 var bShouldRenderRelative = viewModel.dataPoints[i].measureDeviation === null ? false : true;
@@ -508,12 +510,13 @@ module powerbi.extensibility.visual {
                     sSplitChar: null,
                     actualWidth: 0,
                     offset: 0,
-                    isHeader: false,
+                    categorySize: 0,
                     sHeaders: null,
                     headerOffsets: [],
                     headerSizes: [],
                     statusSize: 0,
-                    firstAbsoluteValue: null
+                    firstAbsoluteValue: null,
+                    centeredLines: []
                 };
 
                 if (i === 0) {
@@ -708,6 +711,7 @@ module powerbi.extensibility.visual {
             var curSettings = this.visualCurrentSettings;
 
             var pIntervalStatic = dt * 1.2; // this.pInterval_get(this.dataView)
+            debugger;
             for (var i = 0; i < this.arrTextCategories.length; i++) {
                 var s: TextCategory = this.arrTextCategories[i];
                 if (s.svgSel == null) {
@@ -717,7 +721,7 @@ module powerbi.extensibility.visual {
                         var bShouldRenderRelative = false;
 
                         if (this.visualDataPoints.length > 0) {
-                            bShouldRenderAbsolute =  (this.visualDataPoints[0].measureAbsolute) ? true : false;
+                            bShouldRenderAbsolute = (this.visualDataPoints[0].measureAbsolute) ? true : false;
                             bShouldRenderRelative = this.visualDataPoints[0].measureDeviation.length > 0 ? true : false;
                         }
 
@@ -726,6 +730,9 @@ module powerbi.extensibility.visual {
 
                         s.svgSel = this.svg.append("text").attr("x", s.posX);
                         s.svgSel.attr("font-family", "Lucida Console").attr("font-size", this.activeFontSize + "px");
+                        s.centeredLines[0] = this.svg.append("line");
+                        s.centeredLines[1] = this.svg.append("line");
+
 
                         var that = this;
                         s.svgSel
@@ -737,10 +744,15 @@ module powerbi.extensibility.visual {
                             });
 
                         s.sCategory = s.svgSel.append("tspan")
-                            .text(" " + s.txtCategory + ": ")
+                            .text(s.txtCategory)
                             .attr("y", y)
                             .style("fill", s.colText)
                             ;
+
+                        //Get the size of the category that will be used to center it 
+                        s.svgSel.each(function () {
+                            s.categorySize = this.getBBox().width;
+                        });
 
                         //var headers = ["header1", "header2", "header3"];
                         var headers = this.visualCurrentSettings.headers.headers;
@@ -790,7 +802,6 @@ module powerbi.extensibility.visual {
 
                         if (bShouldRenderRelative) {
                             for (var j = 0; j < s.txtDataRelativeFormatted.length; j++) {
-                                debugger;
                                 var temp = s.svgSel.append("tspan")
                                     .text(s.txtSplitChar[j])
                                     .attr("y", y)
@@ -799,7 +810,6 @@ module powerbi.extensibility.visual {
 
                                 if (j === 0) {
                                     s.firstAbsoluteValue = temp;
-                                    console.log(temp);
                                 }
 
                                 //Retrieves the size of the the triangle (status + or -)
@@ -826,6 +836,14 @@ module powerbi.extensibility.visual {
                             }
                         }
 
+                        var offsetOfCategoryAndHeaders = s.offset;
+
+                        var widthBeforeSpiltChar;
+
+                        s.svgSel.each(function() {
+                            widthBeforeSpiltChar = this.getBBox().width;
+                        });
+
                         s.sSplitChar = s.svgSel.append("tspan")
                             .text(s.txtSeparator)
                             .attr("y", y)
@@ -834,18 +852,23 @@ module powerbi.extensibility.visual {
 
                         s.svgSel.each(function () {
                             //Don't add the offset if it is the header being displayed
-                            if (!s.isHeader) {
-                                var offset = this.getBBox().height;
+                            var offset = this.getBBox().height;
 
-                                for (var i = 0; i < s.sHeaders.length; i++) {
-                                    s.sHeaders[i].attr("y", y - offset);
-                                }
-
-                                s.sCategory.attr("y", y - this.getBBox().height);
-
-                                //The BBox doesn't update until later on, so we will remove the size of the category and header
-                                s.actualWidth = this.getBBox().width - s.offset;
+                            for (var i = 0; i < s.sHeaders.length; i++) {
+                                s.sHeaders[i].attr("y", y - offset);
                             }
+
+                            s.sCategory.attr("y", y - this.getBBox().height);
+
+                            var yLines = y - (this.getBBox().height * 0.75);
+                            s.centeredLines[0].attr("y1", yLines).attr("y2",  yLines);
+                            s.centeredLines[1].attr("y1",  yLines).attr("y2",  yLines);
+
+                            //The BBox doesn't update until later on, so we will remove the size of the category and header
+                            s.actualWidth = this.getBBox().width - offsetOfCategoryAndHeaders;
+
+                            //Use s.offset to get the size of the split char in order to take it into consideration for the centering
+                            s.offset = this.getBBox().width - widthBeforeSpiltChar;
                         });
 
                         if (i > 0) {
@@ -869,7 +892,6 @@ module powerbi.extensibility.visual {
                 }
             }
 
-            //debugger;
             this.activeSpeed += (this.activeTargetSpeed - this.activeSpeed) * 0.5;
             if (this.activeSpeed < 0) {
                 this.activeSpeed = 0;
@@ -888,6 +910,17 @@ module powerbi.extensibility.visual {
                 s.posX -= this.activeSpeed * 8 * pIntervalStatic / 100;
                 if (s.svgSel != null) {
                     s.svgSel.attr("x", s.posX);
+
+                    //Calculate the width of the element without the spacing
+                    var actualWidth = s.actualWidth - s.offset;
+
+                    //Center the category
+                    s.sCategory.attr("x",  s.posX + (actualWidth - s.categorySize) / 2);
+
+                    //Fill up the space next to the category with lines
+                    s.centeredLines[0].attr("x1", s.posX).attr("x2",  s.posX + (actualWidth - s.categorySize) / 2).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                    s.centeredLines[1].attr("x1",  s.posX + ((actualWidth + s.categorySize) / 2)).attr("x2", s.posX + actualWidth).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                    
                     //Move the absolute data to the start of the box (taking the place of the category)
                     if (s.sDataAbsoluteFormatted !== null) {
                         s.sDataAbsoluteFormatted.attr("x", s.posX);
