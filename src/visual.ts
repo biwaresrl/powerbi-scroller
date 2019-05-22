@@ -25,7 +25,6 @@ module powerbi.extensibility.visual {
     interface VisualViewModel {
         dataPoints: VisualDataPoint[];
         settings: VisualSettings;
-        absoluteSource: string;
     };
 
     interface VisualDataPoint {
@@ -84,6 +83,7 @@ module powerbi.extensibility.visual {
         headerOffsets: number[];
         headerSizes: number[];
         statusSize: number;
+        firstAbsoluteValue: d3.Selection<SVGElement>;
     }
 
     function getMeasureIndex(dv: DataViewCategorical, measureName: string): number {
@@ -126,7 +126,6 @@ module powerbi.extensibility.visual {
         let viewModel: VisualViewModel = {
             dataPoints: [],
             settings: <VisualSettings>{},
-            absoluteSource: "",
         };
 
         if (!dataViews[0]) {
@@ -199,8 +198,6 @@ module powerbi.extensibility.visual {
 
         let visualDataPoints: VisualDataPoint[] = [];
 
-
-        var absoluteSource = categorical.values[measureAbsoluteIndex].source.displayName;
         var countOfMeasures;
 
         //Change the loop to retrieve the multiple Deviation values instead of just the one
@@ -236,8 +233,7 @@ module powerbi.extensibility.visual {
 
         return {
             dataPoints: visualDataPoints,
-            settings: visualSettings,
-            absoluteSource: absoluteSource,
+            settings: visualSettings
         };
 
 
@@ -427,7 +423,8 @@ module powerbi.extensibility.visual {
                     sHeaders: null,
                     headerOffsets: [],
                     headerSizes: [],
-                    statusSize: 0
+                    statusSize: 0,
+                    firstAbsoluteValue: null
                 };
                 newCat.posX = this.gPosX;
                 this.arrTextCategories.push(newCat);
@@ -515,7 +512,8 @@ module powerbi.extensibility.visual {
                     sHeaders: null,
                     headerOffsets: [],
                     headerSizes: [],
-                    statusSize: 0
+                    statusSize: 0,
+                    firstAbsoluteValue: null
                 };
 
                 if (i === 0) {
@@ -715,8 +713,13 @@ module powerbi.extensibility.visual {
                 if (s.svgSel == null) {
                     // Create element (it's within the viewport) 
                     if (s.posX < this.viewportWidth) {
-                        var bShouldRenderAbsolute = this.measure0Index >= 0 ? true : false;
-                        var bShouldRenderRelative = this.measure1Index >= 0 ? true : false;
+                        var bShouldRenderAbsolute = false;
+                        var bShouldRenderRelative = false;
+
+                        if (this.visualDataPoints.length > 0) {
+                            bShouldRenderAbsolute =  (this.visualDataPoints[0].measureAbsolute) ? true : false;
+                            bShouldRenderRelative = this.visualDataPoints[0].measureDeviation.length > 0 ? true : false;
+                        }
 
                         var y;
 
@@ -792,12 +795,17 @@ module powerbi.extensibility.visual {
 
                         if (bShouldRenderRelative) {
                             for (var j = 0; j < s.txtDataRelativeFormatted.length; j++) {
-
-                                s.svgSel.append("tspan")
+                                debugger;
+                                var temp = s.svgSel.append("tspan")
                                     .text(s.txtSplitChar[j])
                                     .attr("y", y)
                                     .style("fill", s.colStatus[j])
                                     ;
+
+                                if (j === 0) {
+                                    s.firstAbsoluteValue = temp;
+                                    console.log(temp);
+                                }
 
                                 //Retrieves the size of the the triangle (status + or -)
                                 s.svgSel.each(function () {
@@ -888,11 +896,18 @@ module powerbi.extensibility.visual {
                     //Move the absolute data to the start of the box (taking the place of the category)
                     if (s.sDataAbsoluteFormatted !== null) {
                         s.sDataAbsoluteFormatted.attr("x", s.posX);
+                    } else if (s.firstAbsoluteValue !== null) {
+                        s.firstAbsoluteValue.attr("x", s.posX);
                     }
 
                     //Loop through all of the headers to add the appropriate offset to them in order for them to be centered on top of their values
                     if (s.headerOffsets !== null) {
                         var headerSize = 0;
+
+                        //If the first information is not the absolute data, then we need to take into consideration the status size
+                        if (s.sDataAbsoluteFormatted === null)
+                            headerSize = s.statusSize;
+
                         for (var j = 0; j < s.sHeaders.length; j++) {
                             s.sHeaders[j].attr("x", s.posX + headerSize + (s.headerOffsets[j] / 2) - (s.headerSizes[j] / 2));
 
