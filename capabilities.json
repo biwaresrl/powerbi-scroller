@@ -214,19 +214,23 @@
         }
       }
     },
-    "startInformation": {
-      "displayName": "Display Data Source",
+    "headers": {
+      "displayName": "Headers",
       "properties": {
-        "display": {
-          "displayName": "Display",
+        "header1": {
+          "displayName": "Header 1",
           "type": {
-            "bool": true
+            "text": true
           }
-        },
-        "displayDeviation": {
-          "displayName": "Display Deviations",
+        },"header2": {
+          "displayName": "Header 2",
           "type": {
-            "bool": true
+            "text": true
+          }
+        },"header3": {
+          "displayName": "Header 3",
+          "type": {
+            "text": true
           }
         }
       }

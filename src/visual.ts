@@ -50,8 +50,6 @@ module powerbi.extensibility.visual {
             positiveColour: Fill;
             negativeColour: Fill;
             pInterval: number;
-            displaySource: boolean;
-            displayDeviationSource: boolean;
         },
 
         determinePositive: {
@@ -111,9 +109,7 @@ module powerbi.extensibility.visual {
                 pBgColor: { solid: { color: "#000000" } },
                 positiveColour: { solid: { color: "#96C401" } },
                 negativeColour: { solid: { color: "#DC0002" } },
-                pInterval: 50,
-                displayDeviationSource: true,
-                displaySource: true
+                pInterval: 50
             },
             determinePositive: {
                 default: [true, true],
@@ -155,9 +151,7 @@ module powerbi.extensibility.visual {
                 pBgColor: getValue<Fill>(objects, 'colour', 'pBgColor', defaultSettings.scroller.pBgColor),
                 positiveColour: getValue<Fill>(objects, 'colour', 'positiveColour', defaultSettings.scroller.positiveColour),
                 negativeColour: getValue<Fill>(objects, 'colour', 'negativeColour', defaultSettings.scroller.negativeColour),
-                pInterval: getValue<number>(objects, 'scroller', 'pInterval', defaultSettings.scroller.pInterval),
-                displayDeviationSource: getValue<boolean>(objects, 'startInformation', 'displayDeviation', defaultSettings.scroller.displayDeviationSource),
-                displaySource: getValue<boolean>(objects, 'startInformation', 'display', defaultSettings.scroller.displaySource)
+                pInterval: getValue<number>(objects, 'scroller', 'pInterval', defaultSettings.scroller.pInterval)
             },
             determinePositive: {
                 default: [getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default[0]), getValue<boolean>(objects, 'determinePositive', 'default2', undefined)],
@@ -209,15 +203,6 @@ module powerbi.extensibility.visual {
 
         var absoluteSource = categorical.values[measureAbsoluteIndex].source.displayName;
 
-        if (visualSettings.scroller.displayDeviationSource) {
-            for (var i = measureDeviationStartIndex; i < categorical.values.length; i++) {
-                var measureSource = measureDeviationStartIndex > -1 ? categorical.values[i].source.displayName : null;
-
-                if (measureSource !== null)
-                    absoluteSource += "-" + measureSource;
-            }
-        }
-
         //Change the loop to retrieve the multiple Deviation values instead of just the one
         for (let i = 0, len = Math.max(category.values.length, dataValue.values.length); i < len; i++) {
             var measureAbs = measureAbsoluteIndex > -1 ? <number>categorical.values[measureAbsoluteIndex].values[i] : null;
@@ -225,7 +210,7 @@ module powerbi.extensibility.visual {
             var measureDev = [];
             var measureDevForm = [];
 
-            for (var j = measureDeviationStartIndex; j < categorical.values.length; j++) {
+            for (var j = measureDeviationStartIndex; j < categorical.values.length && j !== -1; j++) {
                 measureDev.push(measureDeviationStartIndex > -1 ? <number>categorical.values[j].values[i] : null);
                 measureDevForm.push(measureDeviationStartIndex > -1 ? valueFormatter.format(<number>categorical.values[j].values[i], dataViews[0].categorical.values.grouped()[0].values[j].source.format) : null);
             }
@@ -440,33 +425,6 @@ module powerbi.extensibility.visual {
                 return;
             }
 
-            if (this.visualCurrentSettings.scroller.displaySource) {
-                //Add a text element that will be used to represent the absolute data that is being displayed on the screen
-                this.arrTextCategories.push({
-                    txtCategory: viewModel.absoluteSource,
-                    txtDataAbsoluteFormatted: "",
-                    txtDataRelativeFormatted: "",
-                    txtSeparator: ".....",
-                    txtSplitChar: [],
-                    colStatus: [this.visualCurrentSettings.scroller.pBgColor.solid.color],
-                    colText: this.visualCurrentSettings.scroller.pForeColor.solid.color,
-                    posX: this.gPosX,
-                    svgSel: null,
-                    sCategory: null,
-                    sDataAbsoluteFormatted: null,
-                    sDataRelativeFormatted: null,
-                    sSeparator: null,
-                    sSplitChar: null,
-                    actualWidth: 0,
-                    offset: 0,
-                    isHeader: true,
-                    sHeaders: null,
-                    headerOffsets: [],
-                    headerSizes: [],
-                    statusSize: 0
-                });
-            }
-
             //This is the part of the code that will create the text based on the values of the data
             for (var i = 0; i < viewModel.dataPoints.length; i++) {
                 var category = viewModel.dataPoints[i].categoryText;
@@ -551,7 +509,7 @@ module powerbi.extensibility.visual {
                     statusSize: 0
                 };
 
-                if (i === 0 && this.visualCurrentSettings.scroller.displaySource === false) {
+                if (i === 0) {
                     newCat.posX = this.gPosX;
                 }
 
@@ -682,14 +640,23 @@ module powerbi.extensibility.visual {
                         selector: null
                     });
                     break;
-                case 'startInformation':
+                case 'headers':
+                    var propertiesHeaders = {
+                    };
+                    
+                    if (this.visualDataPoints[0] !== undefined) {
+                        var count = this.visualDataPoints[0].measureDeviation.length;
+                        count += (this.visualDataPoints[0].measureAbsolute) ? 1 : 0;
+
+                        for (var i = 1; i <= count; i++) {
+                            propertiesHeaders["header" + i] = "";
+                        }
+                    }
+
                     objectEnumeration.push({
                         objectName: objectName,
-                        displayName: "Display Data Source",
-                        properties: {
-                            display: this.visualCurrentSettings.scroller.displaySource,
-                            displayDeviation: this.visualCurrentSettings.scroller.displayDeviationSource
-                        },
+                        displayName: "Headers",
+                        properties: propertiesHeaders,
                         selector: null
                     });
                     break;
