@@ -746,8 +746,7 @@ module powerbi.extensibility.visual {
                             });
 
                         s.sCategory = s.svgSel.append("tspan")
-                            //.text(s.txtCategory)
-                            .text("Really Large Over Exagerated Category")
+                            .text(s.txtCategory)
                             .attr("y", y)
                             .style("fill", s.colText)
                             ;
@@ -889,11 +888,7 @@ module powerbi.extensibility.visual {
                         if (i < this.arrTextCategories.length - 1) {
                             for (var t = i + 1; t < this.arrTextCategories.length; t++) {
                                 var sNext: TextCategory = this.arrTextCategories[t];
-                                sNext.posX = s.posX + s.actualWidth;
-
-                                if (s.actualWidth === s.categorySize) {
-                                    sNext.posX += 50;
-                                }
+                                sNext.posX = s.posX + s.actualWidth + s.offset;
                             }
                         }
                     }
@@ -924,7 +919,7 @@ module powerbi.extensibility.visual {
                     //Since there will not be any empty spaces left
                     if (s.actualWidth !== s.categorySize) {
                         //Calculate the width of the element without the spacing
-                        var actualWidth = s.actualWidth - s.offset;
+                        var actualWidth = s.actualWidth;
 
                         //Center the category
                         s.sCategory.attr("x", s.posX + (actualWidth - s.categorySize) / 2);
@@ -935,7 +930,7 @@ module powerbi.extensibility.visual {
                     }
 
                     var posX = s.posX;
-
+                    debugger;
                     //If the category is the largest part, then we need to center the stocks information based on that
                     if (s.actualWidth === s.categorySize) {
                         posX += s.categorySize / 2;
