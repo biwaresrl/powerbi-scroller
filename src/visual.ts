@@ -577,10 +577,10 @@ module powerbi.extensibility.visual {
             if (condition === undefined || value === undefined || value.trim().length === 0) {
                 return undefined;
             }
-    
+
             return " " + condition + " " + value;
         }
-    
+
 
         public getMetaDataColumnForMeasureIndex(dataView: DataView, measureIndex: number) {
             var addCol = 0;
@@ -741,6 +741,7 @@ module powerbi.extensibility.visual {
             var curSettings = this.visualCurrentSettings;
 
             var pIntervalStatic = dt * 1.2; // this.pInterval_get(this.dataView)
+            debugger;
             for (var i = 0; i < this.arrTextCategories.length; i++) {
                 var s: TextCategory = this.arrTextCategories[i];
                 if (s.svgSel == null) {
@@ -997,11 +998,13 @@ module powerbi.extensibility.visual {
                         if (s.sDataAbsoluteFormatted === null)
                             headerSize = s.statusSize;
 
-                        for (var j = 0; j < s.sHeaders.length; j++) {
-                            s.sHeaders[j].attr("x", posX + headerSize + (s.headerOffsets[j] / 2) - (s.headerSizes[j] / 2));
+                        if (s.sHeaders !== null) {
+                            for (var j = 0; j < s.sHeaders.length; j++) {
+                                s.sHeaders[j].attr("x", posX + headerSize + (s.headerOffsets[j] / 2) - (s.headerSizes[j] / 2));
 
-                            //Append the offset of the previous header and the status symbol (triangle) to the total offset
-                            headerSize += s.headerOffsets[j] + s.statusSize;
+                                //Append the offset of the previous header and the status symbol (triangle) to the total offset
+                                headerSize += s.headerOffsets[j] + s.statusSize;
+                            }
                         }
                     }
                 }

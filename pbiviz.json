@@ -2,17 +2,17 @@
   "visual": {
     "name": "Scroller",
     "displayName": "Scroller",
-    "guid": "ScrollingTextVisual1448795304508",
+    "guid": "XPOScrollingTextVisual1448795304508",
     "visualClassName": "Visual",
     "version": "2.0.3",
     "description": "The Scroller visual creates an animating scrolling text. You can use a custom text or create it from your dimensions and measures. Various settings makes it possible to control speed, size, status indications, coloring, etc.",
     "supportUrl": "http://www.fredrikhedenstrom.com",
-    "gitHubUrl": ""
+    "gitHubUrl": "https://github.com/PesceJonathan/XPO-PowerBI-Scroller"
   },
   "apiVersion": "1.12.0",
   "author": {
-    "name": "Fredrik Hedenström",
-    "email": "fredrik.hedenstrom@outlook.com"
+    "name": "Original: Fredrik Hedenström + Updated: Jonathan Pesce",
+    "email": "fredrik.hedenstrom@outlook.com - jonathanpesce@hotmail.com"
   },
   "assets": {
     "icon": "assets/icon.png"
