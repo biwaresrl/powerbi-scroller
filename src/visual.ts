@@ -344,7 +344,8 @@ module powerbi.extensibility.visual {
             this.viewportHeight = height;
 
             if (this.visualCurrentSettings.scroller.pShouldAutoSizeFont) {
-                this.activeFontSize = height * 0.2;
+                //Since there can be three levels, make the font size a third of the total screen height
+                this.activeFontSize = height * 0.3;
             }
             else {
                 this.activeFontSize = this.visualCurrentSettings.scroller.pFontSize;
@@ -557,8 +558,6 @@ module powerbi.extensibility.visual {
         }
 
         private isPositiveValue(data, settings, index) {
-            console.log(data);
-
             if (settings.determinePositive.custom[index].use === false)
                 return data >= 0;
 
@@ -572,8 +571,10 @@ module powerbi.extensibility.visual {
             return data >= 0;
         }
 
+        //Helper function that will simply combine the values of the when and value of the custom postivie format.
+        //If either aren't defined, then undefined is returned
         private combineConditionAndValue(condition, value) {
-            if (condition === undefined || value === undefined) {
+            if (condition === undefined || value === undefined || value.trim().length === 0) {
                 return undefined;
             }
     
@@ -958,8 +959,6 @@ module powerbi.extensibility.visual {
 
                         var offSetForCategory = 8;
 
-
-                        console.log(this.activeFontSize);
                         //Fill up the space next to the category with lines
                         s.centeredLines[0].attr("x1", s.posX).attr("x2", s.posX + ((actualWidth - s.categorySize) / 2) - offSetForCategory).attr("stroke-width", this.activeFontSize / 10).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
                         s.centeredLines[1].attr("x1", s.posX + ((actualWidth + s.categorySize) / 2) + offSetForCategory).attr("x2", s.posX + actualWidth).attr("stroke-width", this.activeFontSize / 10).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
