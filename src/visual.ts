@@ -746,8 +746,7 @@ module powerbi.extensibility.visual {
                             });
 
                         s.sCategory = s.svgSel.append("tspan")
-                            //.text(s.txtCategory)
-                            .text("Really Large Over Exagerated Category")
+                            .text(s.txtCategory)
                             .attr("y", y)
                             .style("fill", s.colText)
                             ;
