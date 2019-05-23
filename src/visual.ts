@@ -958,9 +958,11 @@ module powerbi.extensibility.visual {
 
                         var offSetForCategory = 8;
 
+
+                        console.log(this.activeFontSize);
                         //Fill up the space next to the category with lines
-                        s.centeredLines[0].attr("x1", s.posX).attr("x2", s.posX + ((actualWidth - s.categorySize) / 2) - offSetForCategory).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
-                        s.centeredLines[1].attr("x1", s.posX + ((actualWidth + s.categorySize) / 2) + offSetForCategory).attr("x2", s.posX + actualWidth).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                        s.centeredLines[0].attr("x1", s.posX).attr("x2", s.posX + ((actualWidth - s.categorySize) / 2) - offSetForCategory).attr("stroke-width", this.activeFontSize / 10).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                        s.centeredLines[1].attr("x1", s.posX + ((actualWidth + s.categorySize) / 2) + offSetForCategory).attr("x2", s.posX + actualWidth).attr("stroke-width", this.activeFontSize / 10).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
                     }
 
                     var posX = s.posX;
