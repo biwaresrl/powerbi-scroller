@@ -97,26 +97,86 @@
     "determinePositive": {
       "displayName": "Determine Positive",
       "properties": {
-        "default": {
-          "displayName": "Default",
+        "custom": {
+          "displayName": "Custom",
           "type": {
             "bool": true
           }
         },
-        "custom": {
-          "displayName": "Custom",
+        "when": {
+          "displayName": "When",
+          "type": {
+            "enumeration": [
+              {
+                "value": "<",
+                "displayName": "is less than"
+              },
+              {
+                "value": "<=",
+                "displayName": "is less than or equal to"
+              },
+              {
+                "value": ">",
+                "displayName": "is greater than"
+              },
+              {
+                "value": ">=",
+                "displayName": "is greater than or equal to"
+              },
+              {
+                "value": "===",
+                "displayName": "is"
+              },
+              {
+                "value": "!==",
+                "displayName": "is not"
+              }
+            ]
+          }
+        },
+        "value": {
           "type": {
             "text": true
           }
         },
-        "default2": {
-          "displayName": "Default 2",
+        "custom2": {
+          "displayName": "Custom",
           "type": {
             "bool": true
           }
         },
-        "custom2": {
-          "displayName": "Custom 2",
+        "when2": {
+          "displayName": "When",
+          "type": {
+            "enumeration": [
+              {
+                "value": "<",
+                "displayName": "is less than"
+              },
+              {
+                "value": "<=",
+                "displayName": "is less than or equal to"
+              },
+              {
+                "value": ">",
+                "displayName": "is greater than"
+              },
+              {
+                "value": ">=",
+                "displayName": "is greater than or equal to"
+              },
+              {
+                "value": "===",
+                "displayName": "is"
+              },
+              {
+                "value": "!==",
+                "displayName": "is not"
+              }
+            ]
+          }
+        },
+        "value2": {
           "type": {
             "text": true
           }
@@ -222,12 +282,14 @@
           "type": {
             "text": true
           }
-        },"header2": {
+        },
+        "header2": {
           "displayName": "Header 2",
           "type": {
             "text": true
           }
-        },"header3": {
+        },
+        "header3": {
           "displayName": "Header 3",
           "type": {
             "text": true
