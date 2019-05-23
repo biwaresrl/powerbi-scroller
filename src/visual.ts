@@ -293,7 +293,6 @@ module powerbi.extensibility.visual {
 
         public update(options: VisualUpdateOptions) {
             this.shouldRestartAnimFrame = true;
-            debugger;
             let viewModel: VisualViewModel = visualTransform(options, this.host, this);
             let settings = this.visualCurrentSettings = viewModel.settings;
             this.visualDataPoints = viewModel.dataPoints;
@@ -549,7 +548,6 @@ module powerbi.extensibility.visual {
             if (settings.determinePositive.default[index])
                 return data >= 0;
 
-                debugger;
             if (index < settings.determinePositive.custom.length && settings.determinePositive.custom[index].trim().length > 0) {
                 var func = new Function("x", "return x " + settings.determinePositive.custom[index]);
                 return func(data);
@@ -714,7 +712,6 @@ module powerbi.extensibility.visual {
             var curSettings = this.visualCurrentSettings;
 
             var pIntervalStatic = dt * 1.2; // this.pInterval_get(this.dataView)
-            debugger;
             for (var i = 0; i < this.arrTextCategories.length; i++) {
                 var s: TextCategory = this.arrTextCategories[i];
                 if (s.svgSel == null) {
@@ -733,8 +730,10 @@ module powerbi.extensibility.visual {
 
                         s.svgSel = this.svg.append("text").attr("x", s.posX);
                         s.svgSel.attr("font-family", "Lucida Console").attr("font-size", this.activeFontSize + "px");
-                        s.centeredLines[0] = this.svg.append("line").classed("removable", true);
-                        s.centeredLines[1] = this.svg.append("line").classed("removable", true);
+
+                        d3.selectAll("." + s.txtCategory).remove();
+                        s.centeredLines[0] = this.svg.append("line").classed("removable", true).classed(s.txtCategory, true);
+                        s.centeredLines[1] = this.svg.append("line").classed("removable", true).classed(s.txtCategory, true);
 
 
                         var that = this;
