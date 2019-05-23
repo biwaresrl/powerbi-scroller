@@ -35,6 +35,12 @@ module powerbi.extensibility.visual {
         measureDeviationFormatted: string[];
     };
 
+    interface customPositive {
+        use: boolean;
+        when: string;
+        value: string;
+    }
+
     interface VisualSettings {
         scroller: {
             pShouldAutoSizeFont: boolean;
@@ -52,8 +58,7 @@ module powerbi.extensibility.visual {
         },
 
         determinePositive: {
-            default: boolean[];
-            custom: string[];
+            custom: customPositive[];
         },
 
         headers: {
@@ -117,8 +122,7 @@ module powerbi.extensibility.visual {
                 pInterval: 50
             },
             determinePositive: {
-                default: [true, true],
-                custom: ["", ""],
+                custom: []
             },
             headers: {
                 headers: []
@@ -151,8 +155,16 @@ module powerbi.extensibility.visual {
                 pInterval: getValue<number>(objects, 'scroller', 'pInterval', defaultSettings.scroller.pInterval)
             },
             determinePositive: {
-                default: [getValue<boolean>(objects, 'determinePositive', 'default', defaultSettings.determinePositive.default[0]), getValue<boolean>(objects, 'determinePositive', 'default2', undefined)].filter(x => x !== undefined),
-                custom: [getValue<string>(objects, 'determinePositive', 'custom', defaultSettings.determinePositive.custom[0]), getValue<string>(objects, 'determinePositive', 'custom2', undefined)].filter(x => x !== undefined)
+                custom: [{
+                    use: getValue<boolean>(objects, 'determinePositive', "custom", false),
+                    when: getValue<string>(objects, 'determinePositive', "when", ">"),
+                    value: getValue<string>(objects, 'determinePositive', "value", undefined)
+                },
+                {
+                    use: getValue<boolean>(objects, 'determinePositive', "custom2", false),
+                    when: getValue<string>(objects, 'determinePositive', "when2", ">"),
+                    value: getValue<string>(objects, 'determinePositive', "value2", undefined)
+                }]
             },
             headers: {
                 headers: [getValue<string>(objects, 'headers', 'header1', ""), getValue<string>(objects, 'headers', 'header2', undefined), getValue<string>(objects, 'headers', 'header3', undefined)].filter(x => x !== undefined)
@@ -545,16 +557,29 @@ module powerbi.extensibility.visual {
         }
 
         private isPositiveValue(data, settings, index) {
-            if (settings.determinePositive.default[index])
+            console.log(data);
+
+            if (settings.determinePositive.custom[index].use === false)
                 return data >= 0;
 
-            if (index < settings.determinePositive.custom.length && settings.determinePositive.custom[index].trim().length > 0) {
-                var func = new Function("x", "return x " + settings.determinePositive.custom[index]);
+            var condition = this.combineConditionAndValue(settings.determinePositive.custom[index].when, settings.determinePositive.custom[index].value);
+
+            if (condition !== undefined) {
+                var func = new Function("x", "return x " + condition);
                 return func(data);
             }
 
             return data >= 0;
         }
+
+        private combineConditionAndValue(condition, value) {
+            if (condition === undefined || value === undefined) {
+                return undefined;
+            }
+    
+            return " " + condition + " " + value;
+        }
+    
 
         public getMetaDataColumnForMeasureIndex(dataView: DataView, measureIndex: number) {
             var addCol = 0;
@@ -595,15 +620,18 @@ module powerbi.extensibility.visual {
 
                     if (this.visualDataPoints[0] !== undefined && this.visualDataPoints[0].measureDeviation.length === 2) {
                         properties = {
-                            default: this.visualCurrentSettings.determinePositive.default[0],
-                            custom: this.visualCurrentSettings.determinePositive.custom[0],
-                            default2: this.visualCurrentSettings.determinePositive.default[1],
-                            custom2: this.visualCurrentSettings.determinePositive.custom[1]
+                            custom: this.visualCurrentSettings.determinePositive.custom[0].use,
+                            when: this.visualCurrentSettings.determinePositive.custom[0].when,
+                            value: this.visualCurrentSettings.determinePositive.custom[0].value,
+                            custom2: this.visualCurrentSettings.determinePositive.custom[1].use,
+                            when2: this.visualCurrentSettings.determinePositive.custom[1].when,
+                            value2: this.visualCurrentSettings.determinePositive.custom[1].value,
                         };
                     } else {
                         properties = {
-                            default: this.visualCurrentSettings.determinePositive.default[0],
-                            custom: this.visualCurrentSettings.determinePositive.custom[0]
+                            custom: this.visualCurrentSettings.determinePositive.custom[0].use,
+                            when: this.visualCurrentSettings.determinePositive.custom[0].when,
+                            value: this.visualCurrentSettings.determinePositive.custom[0].value
                         };
                     }
 
@@ -841,7 +869,7 @@ module powerbi.extensibility.visual {
 
                         var widthBeforeSpiltChar;
 
-                        s.svgSel.each(function() {
+                        s.svgSel.each(function () {
                             widthBeforeSpiltChar = this.getBBox().width;
                         });
 
@@ -859,15 +887,19 @@ module powerbi.extensibility.visual {
                                 s.sHeaders[i].attr("y", y - offset);
                             }
 
-                            s.sCategory.attr("y", y - this.getBBox().height);
+                            //Keep track of the category height and y position to use it to place the lines
+                            var categoryHeight = y - this.getBBox().height;
+                            offset = this.getBBox().height;
+                            s.sCategory.attr("y", categoryHeight);
 
-                            var yLines = y - (this.getBBox().height * 0.75);
-                            s.centeredLines[0].attr("y1", yLines).attr("y2",  yLines);
-                            s.centeredLines[1].attr("y1",  yLines).attr("y2",  yLines);
+                            var temp = this.getBBox().height;
+                            var yLines = categoryHeight - ((temp - offset) * 0.4);
+                            s.centeredLines[0].attr("y1", yLines).attr("y2", yLines);
+                            s.centeredLines[1].attr("y1", yLines).attr("y2", yLines);
 
                             //The actual width of the element will be the largest element between the different levels
-                            s.actualWidth = d3.max([widthBeforeSpiltChar - offsetOfCategoryAndHeaders ,
-                                s.categorySize
+                            s.actualWidth = d3.max([widthBeforeSpiltChar - offsetOfCategoryAndHeaders,
+                            s.categorySize
                             ]);
 
                             //Use s.offset to get the size of the split char in order to take it into consideration for the centering
@@ -924,13 +956,16 @@ module powerbi.extensibility.visual {
                         //Center the category
                         s.sCategory.attr("x", s.posX + (actualWidth - s.categorySize) / 2);
 
+                        var offSetForCategory = 8;
+
+
+                        console.log(this.activeFontSize);
                         //Fill up the space next to the category with lines
-                        s.centeredLines[0].attr("x1", s.posX).attr("x2", s.posX + (actualWidth - s.categorySize) / 2).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
-                        s.centeredLines[1].attr("x1", s.posX + ((actualWidth + s.categorySize) / 2)).attr("x2", s.posX + actualWidth).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                        s.centeredLines[0].attr("x1", s.posX).attr("x2", s.posX + ((actualWidth - s.categorySize) / 2) - offSetForCategory).attr("stroke-width", this.activeFontSize / 10).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                        s.centeredLines[1].attr("x1", s.posX + ((actualWidth + s.categorySize) / 2) + offSetForCategory).attr("x2", s.posX + actualWidth).attr("stroke-width", this.activeFontSize / 10).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
                     }
 
                     var posX = s.posX;
-                    debugger;
                     //If the category is the largest part, then we need to center the stocks information based on that
                     if (s.actualWidth === s.categorySize) {
                         posX += s.categorySize / 2;
