@@ -887,9 +887,13 @@ module powerbi.extensibility.visual {
                                 s.sHeaders[i].attr("y", y - offset);
                             }
 
-                            s.sCategory.attr("y", y - this.getBBox().height);
+                            //Keep track of the category height and y position to use it to place the lines
+                            var categoryHeight = y - this.getBBox().height;
+                            offset = this.getBBox().height;
+                            s.sCategory.attr("y", categoryHeight);
 
-                            var yLines = y - (this.getBBox().height * 0.75);
+                            var temp = this.getBBox().height;
+                            var yLines = categoryHeight - ((temp - offset) * 0.4);
                             s.centeredLines[0].attr("y1", yLines).attr("y2", yLines);
                             s.centeredLines[1].attr("y1", yLines).attr("y2", yLines);
 
