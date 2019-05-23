@@ -746,7 +746,8 @@ module powerbi.extensibility.visual {
                             });
 
                         s.sCategory = s.svgSel.append("tspan")
-                            .text(s.txtCategory)
+                            //.text(s.txtCategory)
+                            .text("Really Large Over Exagerated Category")
                             .attr("y", y)
                             .style("fill", s.colText)
                             ;
@@ -756,7 +757,6 @@ module powerbi.extensibility.visual {
                             s.categorySize = this.getBBox().width;
                         });
 
-                        //var headers = ["header1", "header2", "header3"];
                         var headers = this.visualCurrentSettings.headers.headers;
                         s.sHeaders = [];
                         s.headerSizes = [];
@@ -866,8 +866,10 @@ module powerbi.extensibility.visual {
                             s.centeredLines[0].attr("y1", yLines).attr("y2",  yLines);
                             s.centeredLines[1].attr("y1",  yLines).attr("y2",  yLines);
 
-                            //The BBox doesn't update until later on, so we will remove the size of the category and header
-                            s.actualWidth = this.getBBox().width - offsetOfCategoryAndHeaders;
+                            //The actual width of the element will be the largest element between the different levels
+                            s.actualWidth = d3.max([widthBeforeSpiltChar - offsetOfCategoryAndHeaders ,
+                                s.categorySize
+                            ]);
 
                             //Use s.offset to get the size of the split char in order to take it into consideration for the centering
                             s.offset = this.getBBox().width - widthBeforeSpiltChar;
@@ -888,6 +890,10 @@ module powerbi.extensibility.visual {
                             for (var t = i + 1; t < this.arrTextCategories.length; t++) {
                                 var sNext: TextCategory = this.arrTextCategories[t];
                                 sNext.posX = s.posX + s.actualWidth;
+
+                                if (s.actualWidth === s.categorySize) {
+                                    sNext.posX += 50;
+                                }
                             }
                         }
                     }
@@ -913,21 +919,45 @@ module powerbi.extensibility.visual {
                 if (s.svgSel != null) {
                     s.svgSel.attr("x", s.posX);
 
-                    //Calculate the width of the element without the spacing
-                    var actualWidth = s.actualWidth - s.offset;
 
-                    //Center the category
-                    s.sCategory.attr("x",  s.posX + (actualWidth - s.categorySize) / 2);
+                    //If the size of the element is the same as the category then we don't need lines to fill the empty space
+                    //Since there will not be any empty spaces left
+                    if (s.actualWidth !== s.categorySize) {
+                        //Calculate the width of the element without the spacing
+                        var actualWidth = s.actualWidth - s.offset;
 
-                    //Fill up the space next to the category with lines
-                    s.centeredLines[0].attr("x1", s.posX).attr("x2",  s.posX + (actualWidth - s.categorySize) / 2).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
-                    s.centeredLines[1].attr("x1",  s.posX + ((actualWidth + s.categorySize) / 2)).attr("x2", s.posX + actualWidth).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
-                    
+                        //Center the category
+                        s.sCategory.attr("x", s.posX + (actualWidth - s.categorySize) / 2);
+
+                        //Fill up the space next to the category with lines
+                        s.centeredLines[0].attr("x1", s.posX).attr("x2", s.posX + (actualWidth - s.categorySize) / 2).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                        s.centeredLines[1].attr("x1", s.posX + ((actualWidth + s.categorySize) / 2)).attr("x2", s.posX + actualWidth).attr("stroke-width", 2).attr("stroke", this.visualCurrentSettings.scroller.pForeColor.solid.color);
+                    }
+
+                    var posX = s.posX;
+
+                    //If the category is the largest part, then we need to center the stocks information based on that
+                    if (s.actualWidth === s.categorySize) {
+                        posX += s.categorySize / 2;
+
+                        //Takes into consideration the size of the headers
+                        for (var j = 0; j < s.headerOffsets.length; j++) {
+                            posX -= s.headerOffsets[j] / 2;
+                        }
+
+                        //Takes into consideration the size of the icons (triangles for positive or negative)
+                        if (s.txtDataRelativeFormatted !== null) {
+                            for (var j = 0; j < s.txtDataRelativeFormatted.length; j++) {
+                                posX -= s.statusSize / 2;
+                            }
+                        }
+                    }
+
                     //Move the absolute data to the start of the box (taking the place of the category)
                     if (s.sDataAbsoluteFormatted !== null) {
-                        s.sDataAbsoluteFormatted.attr("x", s.posX);
+                        s.sDataAbsoluteFormatted.attr("x", posX);
                     } else if (s.firstAbsoluteValue !== null) {
-                        s.firstAbsoluteValue.attr("x", s.posX);
+                        s.firstAbsoluteValue.attr("x", posX);
                     }
 
                     //Loop through all of the headers to add the appropriate offset to them in order for them to be centered on top of their values
@@ -939,7 +969,7 @@ module powerbi.extensibility.visual {
                             headerSize = s.statusSize;
 
                         for (var j = 0; j < s.sHeaders.length; j++) {
-                            s.sHeaders[j].attr("x", s.posX + headerSize + (s.headerOffsets[j] / 2) - (s.headerSizes[j] / 2));
+                            s.sHeaders[j].attr("x", posX + headerSize + (s.headerOffsets[j] / 2) - (s.headerSizes[j] / 2));
 
                             //Append the offset of the previous header and the status symbol (triangle) to the total offset
                             headerSize += s.headerOffsets[j] + s.statusSize;
