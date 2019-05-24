@@ -23,6 +23,7 @@ The ability to add headers has been added to the visual. This can allow for the 
 
 ![Example of headers](./assets/twoHeaders.PNG)
 ![Example of headers](./assets/noHeaders.png)
+![FormatingExamples](./assets/formattingExamples.png)
 
 ### Colours:
 The ablility to change the positive and negative colours has been added in the formatting options. Note that only the deviation values itself will take on those colours (unless specified not to), whereas the category name and the absolute value will be the text colour that is specified in the formatting options.
