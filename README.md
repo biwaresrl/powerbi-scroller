@@ -27,6 +27,13 @@ The ability to add headers has been added to the visual. This can allow for the 
 
 ### Colours:
 The ablility to change the positive and negative colours has been added in the formatting options. Note that only the deviation values itself will take on those colours (unless specified not to), whereas the category name and the absolute value will be the text colour that is specified in the formatting options.
+
+## Installation Process
+If you clone this repository, you will not have any of the dependencies necessarry to run the code. In order to download those dependencies, you must enter the following commands:
+
+```bash
+npm install 
+```
 ________________________________________________________________________________________________________________________________________
 # Scroller visual for Power BI
 
