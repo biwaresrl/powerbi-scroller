@@ -1,8 +1,8 @@
-# XPO Power BI Scroller
+# Power BI Scroller
 The readme content of the original project is appened bellow
 
 ## Drescription
-The purpose of this project is to take the already existing scroller from Power BI and build upon it to add more customization and for it to better fit the need of XPO. 
+The purpose of this project is to take the already existing scroller from Power BI and build upon it to add more customization and for it to better fit the need of individuals. 
 
 ## Changes
 ### Visual:
