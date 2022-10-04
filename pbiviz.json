@@ -4,7 +4,7 @@
     "displayName": "Scroller",
     "guid": "powerbiscroller4e68df7403c84295afb9be8310f05988",
     "visualClassName": "Visual",
-    "version": "2.0.3",
+    "version": "3.0.0",
     "description": "The Scroller visual creates an animating scrolling text. You can use a custom text or create it from your dimensions and measures. Various settings makes it possible to control speed, size, status indications, coloring, etc.",
     "supportUrl": "https://www.biware.it",
     "gitHubUrl": "https://github.com/biwaresrl/powerbi-scroller"
