@@ -2,33 +2,23 @@
   "visual": {
     "name": "Scroller",
     "displayName": "Scroller",
-    "guid": "XPOScrollingTextVisual1448795304508",
+    "guid": "powerbiscroller4e68df7403c84295afb9be8310f05988",
     "visualClassName": "Visual",
     "version": "2.0.3",
     "description": "The Scroller visual creates an animating scrolling text. You can use a custom text or create it from your dimensions and measures. Various settings makes it possible to control speed, size, status indications, coloring, etc.",
-    "supportUrl": "http://www.fredrikhedenstrom.com",
-    "gitHubUrl": "https://github.com/PesceJonathan/XPO-PowerBI-Scroller"
+    "supportUrl": "https://www.biware.it",
+    "gitHubUrl": "https://github.com/biwaresrl/powerbi-scroller"
   },
-  "apiVersion": "1.12.0",
+  "apiVersion": "3.2.0",
   "author": {
-    "name": "Original: Fredrik Hedenström + Updated: Jonathan Pesce",
-    "email": "fredrik.hedenstrom@outlook.com - jonathanpesce@hotmail.com"
+    "name": "Fredrik Hedenström, Jonathan Pesce, Alessandro Losi",
+    "email": "fredrik.hedenstrom@outlook.com;jonathanpesce@hotmail.com;info@biware.it"
   },
   "assets": {
     "icon": "assets/icon.png"
   },
-  "externalJS": [
-    "node_modules/jquery/dist/jquery.min.js",
-    "node_modules/d3/d3.min.js",
-    "node_modules/lodash/lodash.min.js",
-    "node_modules/globalize/lib/globalize.js",
-    "node_modules/globalize/lib/cultures/globalize.culture.en-US.js",
-    "node_modules/powerbi-visuals-utils-typeutils/lib/index.js",
-    "node_modules/powerbi-visuals-utils-svgutils/lib/index.js",
-    "node_modules/powerbi-visuals-utils-dataviewutils/lib/index.js",
-    "node_modules/powerbi-visuals-utils-formattingutils/lib/index.js",
-    "external/hashtable.js"
-  ],
+  "externalJS": null,
   "style": "style/visual.less",
-  "capabilities": "capabilities.json"
+  "capabilities": "capabilities.json",
+  "dependencies": null
 }
